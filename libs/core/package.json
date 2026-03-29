@@ -1,0 +1,27 @@
+{
+  "name": "@spai/core",
+  "version": "0.1.0",
+  "description": "Spai Core",
+  "contributors": [
+    "parabola2004 <chengzhuo2004@qq.com>"
+  ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "debug": "catalog:"
+  },
+  "devDependencies": {
+    "@types/debug": "catalog:",
+    "@types/jest": "catalog:",
+    "jest": "catalog:",
+    "typescript": "catalog:"
+  }
+}

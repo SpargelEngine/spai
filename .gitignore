@@ -6,4 +6,5 @@
 .tmp*
 dist/
 node_modules/
+pnpm-lock.yaml
 tsconfig.tsbuildinfo

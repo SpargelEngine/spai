@@ -1,0 +1,15 @@
+export default {
+    trailingComma: 'es5',
+    tabWidth: 4,
+    semi: false,
+    singleQuote: true,
+    overrides: [
+        {
+            files: ['*.json', '*.yaml'],
+            options: {
+                tabWidth: 2,
+                singleQuote: false,
+            },
+        },
+    ],
+}

@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - libs/*
+
+catalog:
+  "@types/debug": ^4.1.13
+  "@types/jest": ^30.0.0
+  debug: ^4.4.3
+  jest: ^30.3.0
+  typescript: ^5.9.3
