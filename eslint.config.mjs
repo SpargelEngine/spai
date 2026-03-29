@@ -14,6 +14,10 @@ export default defineConfig([
                     allowSeparatedGroups: true,
                 },
             ],
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                { argsIgnorePattern: '^_' },
+            ],
         },
     },
     {
