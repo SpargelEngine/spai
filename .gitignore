@@ -1,0 +1,9 @@
+*.bak
+*.swp
+.env
+.local*
+.npmrc
+.tmp*
+dist/
+node_modules/
+tsconfig.tsbuildinfo
