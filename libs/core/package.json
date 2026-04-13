@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Spai Core",
   "contributors": [
-    "parabola2004 <chengzhuo2004@qq.com>"
+    "parabola2004 <chengzhuo2004@qq.com>",
+    "Tianjiao Nie <ivwumupy@gmail.com>"
   ],
   "license": "MIT",
   "main": "dist/index.js",
@@ -16,12 +17,14 @@
     "test": "jest"
   },
   "dependencies": {
+    "@types/node": "^25.5.0",
     "debug": "catalog:"
   },
   "devDependencies": {
     "@types/debug": "catalog:",
     "@types/jest": "catalog:",
     "jest": "catalog:",
+    "tsx": "^4.21.0",
     "typescript": "catalog:"
   }
 }

@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "description": "AI Chat/Agent Toolkit",
   "contributors": [
-    "parabola2004 <chengzhuo2004@qq.com>"
+    "parabola2004 <chengzhuo2004@qq.com>",
+    "Tianjiao Nie <ivwumupy@gmail.com>"
   ],
   "license": "MIT",
   "private": true,
   "scripts": {
     "format-check": "prettier --check .",
+    "format": "prettier --check . --write",
     "lint": "eslint .",
     "lint:fix": "eslint --fix ."
   },
