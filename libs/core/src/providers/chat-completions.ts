@@ -125,8 +125,6 @@ function fromChatCompletions(message: ChatCompletionMessage): {
     return { assistantMessage, toolCallMessages }
 }
 
-const DEEPSEEK_MODELS = new Set(['deepseek-chat', 'deepseek-reasoner'])
-
 export class DeepSeekProvider implements Provider {
     constructor(
         private baseUrl: string | URL,
@@ -138,11 +136,6 @@ export class DeepSeekProvider implements Provider {
         config: Config,
         _tools?: Tool[]
     ): Promise<Response> {
-        // validate config
-        if (!DEEPSEEK_MODELS.has(config.model)) {
-            throw Error('unknown model: ' + config.model)
-        }
-
         const request = toChatCompletions(messages, config)
 
         if (config.thinking) {
