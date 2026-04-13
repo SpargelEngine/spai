@@ -1,4 +1,12 @@
-import { ChatItem, Config, Message, Provider, Response, Tool } from './types'
+import {
+    AssistantMessage,
+    Config,
+    Message,
+    Provider,
+    Response,
+    Tool,
+    ToolCallMessage,
+} from './types'
 
 export interface OpenAIChatCompletionsRequest {
     model: string
@@ -38,123 +46,106 @@ export function toChatCompletions(
 ): OpenAIChatCompletionsRequest {
     const chatCompletionsMessages: OpenAIChatCompletionMessage[] = []
 
-    let pendingToolCalls: OpenAIChatCompletionToolCall[] = []
-    let pendingReasoning: string | undefined = undefined
+    let lastAssistant: OpenAIChatCompletionMessage | undefined = undefined
 
-    const flushPending = () => {
-        if (pendingReasoning !== undefined || pendingToolCalls.length !== 0) {
-            chatCompletionsMessages.push({
-                role: 'assistant',
-                content: '',
-                reasoning_content: pendingReasoning,
-                tool_calls: pendingToolCalls,
-            })
-        }
+    // const flushPending = () => {
+    //     if (pendingReasoning !== undefined || pendingToolCalls.length !== 0) {
+    //         chatCompletionsMessages.push({
+    //             role: 'assistant',
+    //             content: '',
+    //             reasoning_content: pendingReasoning,
+    //             tool_calls: pendingToolCalls,
+    //         })
+    //     }
 
-        pendingReasoning = undefined
-        pendingToolCalls = []
-    }
+    //     pendingToolCalls = []
+    // }
 
     for (const message of messages) {
-        for (const item of message.items) {
-            switch (item.type) {
-                case 'reasoning': {
-                    flushPending()
-                    pendingReasoning = item.content
-                    break
+        switch (message.role) {
+            case 'user': {
+                chatCompletionsMessages.push({
+                    role: 'user',
+                    content: message.content,
+                })
+                break
+            }
+            case 'assistant': {
+                const chatCompletionsMessage: OpenAIChatCompletionMessage = {
+                    role: 'assistant',
+                    content: message.content,
+                    reasoning_content: message.reasoning,
+                    tool_calls: undefined,
                 }
-                case 'input-text': {
-                    flushPending()
-                    chatCompletionsMessages.push({
-                        role: 'user',
-                        content: item.content,
-                    })
-                    break
+                lastAssistant = chatCompletionsMessage
+                chatCompletionsMessages.push(chatCompletionsMessage)
+                break
+            }
+            case 'tool-call': {
+                if (lastAssistant === undefined) {
+                    throw Error('tool-call cannot occur before assistant')
                 }
-                case 'output-text': {
-                    const chatCompletionsMessage: OpenAIChatCompletionMessage =
-                        {
-                            role: 'assistant',
-                            content: item.content,
-                            reasoning_content: undefined,
-                            tool_calls: undefined,
-                        }
-                    if (pendingReasoning !== undefined) {
-                        chatCompletionsMessage.reasoning_content =
-                            pendingReasoning
-                        pendingReasoning = undefined
-                    }
-                    if (pendingToolCalls.length !== 0) {
-                        chatCompletionsMessage.tool_calls = pendingToolCalls
-                        pendingToolCalls = []
-                    }
-                    chatCompletionsMessages.push(chatCompletionsMessage)
-                    break
+                if (lastAssistant.tool_calls === undefined) {
+                    lastAssistant.tool_calls = []
                 }
-                case 'tool-call': {
-                    pendingToolCalls.push({
-                        id: item.id,
-                        type: 'function',
-                        function: {
-                            name: item.name,
-                            arguments: item.arguments,
-                        },
-                    })
-                    break
-                }
-                case 'tool-result': {
-                    flushPending()
-                    chatCompletionsMessages.push({
-                        role: 'tool',
-                        tool_call_id: item.id,
-                        content: item.content,
-                    })
-                    break
-                }
+                lastAssistant.tool_calls.push({
+                    id: message.id,
+                    type: 'function',
+                    function: {
+                        name: message.name,
+                        arguments: message.arguments,
+                    },
+                })
+                break
+            }
+            case 'tool-result': {
+                chatCompletionsMessages.push({
+                    role: 'tool',
+                    tool_call_id: message.id,
+                    content: message.content,
+                })
+                break
             }
         }
-
-        flushPending()
     }
 
     return { model: config.model, messages: chatCompletionsMessages }
 }
 
-export function fromChatCompletions(
-    message: OpenAIChatCompletionMessage
-): Message {
-    const items: ChatItem[] = []
+export function fromChatCompletions(message: OpenAIChatCompletionMessage): {
+    assistantMessage: AssistantMessage
+    toolCallMessages: ToolCallMessage[]
+} {
+    const assistantMessage: AssistantMessage = {
+        role: 'assistant',
+    }
+    const toolCallMessages: ToolCallMessage[] = []
     if (message.role !== 'assistant') {
         throw Error('unsupported role')
     }
-    if (message.reasoning_content !== undefined) {
-        items.push({
-            type: 'reasoning',
-            content: message.reasoning_content,
-        })
-    }
+    assistantMessage.reasoning = message.reasoning_content
+    assistantMessage.content = message.content
     if (message.tool_calls !== undefined) {
         for (const tool_call of message.tool_calls) {
-            items.push({
-                type: 'tool-call',
+            toolCallMessages.push({
+                role: 'tool-call',
                 id: tool_call.id,
                 name: tool_call.function.name,
                 arguments: tool_call.function.arguments,
             })
         }
     }
-    if (message.content !== undefined) {
-        items.push({
-            type: 'output-text',
-            content: message.content,
-        })
-    }
-    return { items }
+    return { assistantMessage, toolCallMessages }
 }
 
 const DEEPSEEK_MODELS = new Set(['deepseek-chat', 'deepseek-reasoner'])
 
 export class DeepSeekProvider implements Provider {
+    constructor(
+        private baseUrl: string | URL,
+        private apiKey: string
+    ) {}
+
     async generate(
         messages: Message[],
         config: Config,
@@ -175,9 +166,9 @@ export class DeepSeekProvider implements Provider {
 
         const headers = new Headers()
         headers.append('Content-Type', 'application/json')
-        headers.append('Authorization', `Bearer ${config.api_key}`)
+        headers.append('Authorization', `Bearer ${this.apiKey}`)
         const response = await fetch(
-            new URL('/chat/completions', config.base_url),
+            new URL('/chat/completions', this.baseUrl),
             {
                 method: 'POST',
                 headers: headers,
@@ -190,6 +181,10 @@ export class DeepSeekProvider implements Provider {
         }
         const json = await response.json()
         const message = json.choices[0].message
-        return { message: fromChatCompletions(message) }
+        const { assistantMessage, toolCallMessages } =
+            fromChatCompletions(message)
+
+        // TODO(tianjiao): Fill in real finish reason.
+        return { assistantMessage, toolCallMessages, finishReason: 'stop' }
     }
 }

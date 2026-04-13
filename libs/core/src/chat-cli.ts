@@ -1,7 +1,7 @@
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
-import { ChatItem, Config, Message, Provider } from './types'
+import { Config, Message, Provider, Response } from './types'
 import { DeepSeekProvider } from './providers'
 
 const EXIT_COMMANDS = new Set([':q', ':quit', ':exit'])
@@ -10,36 +10,22 @@ function printWelcome() {
     console.log('hint: Type a message and press enter. Type ":q" to quit.')
 }
 
-function printResponse(items: ChatItem[]) {
-    for (const item of items) {
-        switch (item.type) {
-            case 'reasoning':
-                if (item.content.trim() !== '') {
-                    console.log(`[reasoning]\n${item.content}`)
-                }
-                break
-            case 'output-text':
-                console.log(`[assistant]\n ${item.content}`)
-                break
-            case 'tool-call':
-                console.log(`[tool-call]\n ${item.name}(${item.arguments})`)
-                break
-            case 'tool-result':
-                console.log(`[tool-result]\n ${item.content}`)
-                break
-            case 'input-text':
-                break
-        }
-        console.log('')
+function printResponse(response: Response) {
+    const { assistantMessage, toolCallMessages } = response
+    if (assistantMessage.reasoning !== undefined) {
+        console.log(`[reasoning]\n${assistantMessage.reasoning}`)
+    }
+    if (assistantMessage.content !== undefined) {
+        console.log(`[reasoning]\n${assistantMessage.content}`)
+    }
+    for (const toolCall of toolCallMessages) {
+        console.log(`[tool-call]\n ${toolCall.name}(${toolCall.arguments})`)
     }
 }
 
 async function runChatCli(provider: Provider) {
-    const api_key = process.env.DEEPSEEK_API_KEY ?? '<DUMMY>'
     const config: Config = {
         model: 'deepseek-chat',
-        base_url: 'https://api.deepseek.com',
-        api_key: api_key,
         thinking: true,
     }
 
@@ -69,18 +55,15 @@ async function runChatCli(provider: Provider) {
             }
 
             history.push({
-                items: [
-                    {
-                        type: 'input-text',
-                        content: input,
-                    },
-                ],
+                role: 'user',
+                content: input,
             })
 
             const response = await provider.generate(history, config)
-            history.push(response.message)
+            history.push(response.assistantMessage)
+            history.concat(response.toolCallMessages)
 
-            printResponse(response.message.items)
+            printResponse(response)
         }
     } finally {
         rl.close()
@@ -88,7 +71,8 @@ async function runChatCli(provider: Provider) {
 }
 
 async function main() {
-    await runChatCli(new DeepSeekProvider())
+    const apiKey = process.env.DEEPSEEK_API_KEY ?? '<DUMMY>'
+    await runChatCli(new DeepSeekProvider('https://api.deepseek.com', apiKey))
 }
 
 void main().catch((error: unknown) => {
