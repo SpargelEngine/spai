@@ -1,32 +1,53 @@
-export type ChatItem =
-    | {
-          type: 'reasoning'
-          content: string
-          encrypted?: string
-      }
-    | { type: 'input-text'; content: string }
-    | { type: 'output-text'; content: string }
-    | { type: 'tool-call'; id: string; name: string; arguments: string }
-    | { type: 'tool-result'; id: string; content: string }
+export type UserMessage = { role: 'user'; content: string }
 
-export interface Message {
-    items: ChatItem[]
+export type AssistantMessage = {
+    role: 'assistant'
+    content?: string
+    reasoning?: string
+    signature?: string
 }
 
+export type ToolCallMessage = {
+    role: 'tool-call'
+    id: string
+    name: string
+    arguments: string
+}
+
+export type ToolResultMessage = {
+    role: 'tool-result'
+    id: string
+    content: string
+}
+
+export type Message =
+    | UserMessage
+    | AssistantMessage
+    | ToolCallMessage
+    | ToolResultMessage
+
+export type FinishReason = 'stop' | 'length' | 'tool-call' | 'error'
+
 export interface Response {
-    message: Message
-    token_usage?: TokenUsage
+    assistantMessage: AssistantMessage
+    toolCallMessages: ToolCallMessage[]
+    tokenUsage?: TokenUsage
+    finishReason: FinishReason
 }
 
 export interface TokenUsage {
-    input_tokens: number
-    output_tokens: number
+    inputTokens: number
+    outputTokens: number
+}
+
+export interface Tool {
+    name: string
+    description: string
+    parameters: object // json-schema
 }
 
 export interface Config {
     model: string
-    base_url: string
-    api_key: string
     thinking: boolean
 }
 
@@ -36,12 +57,4 @@ export interface Provider {
         config: Config,
         tools?: Tool[]
     ): Promise<Response>
-}
-
-export type FinishReason = 'stop' | 'length' | 'tool-call' | 'error'
-
-export interface Tool {
-    name: string
-    description: string
-    parameters: object // json-schema
 }

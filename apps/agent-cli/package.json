@@ -1,29 +1,27 @@
 {
-  "name": "@spai/core",
+  "name": "@spai/agent-cli",
   "version": "0.1.0",
-  "description": "Spai Core",
+  "description": "Spai Agent",
   "contributors": [
     "parabola2004 <chengzhuo2004@qq.com>",
     "Tianjiao Nie <ivwumupy@gmail.com>"
   ],
   "license": "MIT",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "run": "node dist/main.js"
   },
   "dependencies": {
-    "debug": "catalog:"
+    "@spai/core": "workspace:"
   },
   "devDependencies": {
-    "@types/debug": "catalog:",
+    "@types/node": "catalog:",
     "@types/jest": "catalog:",
     "jest": "catalog:",
-    "tsx": "^4.21.0",
     "typescript": "catalog:"
   }
 }
