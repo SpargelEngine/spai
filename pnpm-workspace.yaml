@@ -8,4 +8,4 @@ catalog:
   "@types/node": ^25.5.0
   debug: ^4.4.3
   jest: ^30.3.0
-  typescript: ^5.9.3
+  typescript: ^6.0.2
