@@ -6,15 +6,15 @@ import {
     Response,
     Tool,
     ToolCallMessage,
-} from './types'
+} from '../types'
 
-export interface OpenAIChatCompletionsRequest {
+interface ChatCompletionsRequest {
     model: string
-    messages: OpenAIChatCompletionMessage[]
+    messages: ChatCompletionMessage[]
     thinking?: { type: 'enabled' }
 }
 
-export type OpenAIChatCompletionMessage =
+type ChatCompletionMessage =
     | {
           role: 'user'
           content: string
@@ -23,7 +23,7 @@ export type OpenAIChatCompletionMessage =
           role: 'assistant'
           content?: string
           reasoning_content?: string
-          tool_calls?: OpenAIChatCompletionToolCall[]
+          tool_calls?: ChatCompletionToolCall[]
       }
     | {
           role: 'tool'
@@ -31,7 +31,7 @@ export type OpenAIChatCompletionMessage =
           tool_call_id: string
       }
 
-export interface OpenAIChatCompletionToolCall {
+interface ChatCompletionToolCall {
     id: string
     type: 'function'
     function: {
@@ -40,13 +40,13 @@ export interface OpenAIChatCompletionToolCall {
     }
 }
 
-export function toChatCompletions(
+function toChatCompletions(
     messages: Message[],
     config: Config
-): OpenAIChatCompletionsRequest {
-    const chatCompletionsMessages: OpenAIChatCompletionMessage[] = []
+): ChatCompletionsRequest {
+    const chatCompletionsMessages: ChatCompletionMessage[] = []
 
-    let lastAssistant: OpenAIChatCompletionMessage | undefined = undefined
+    let lastAssistant: ChatCompletionMessage | undefined = undefined
 
     for (const message of messages) {
         switch (message.role) {
@@ -58,7 +58,7 @@ export function toChatCompletions(
                 break
             }
             case 'assistant': {
-                const chatCompletionsMessage: OpenAIChatCompletionMessage = {
+                const chatCompletionsMessage: ChatCompletionMessage = {
                     role: 'assistant',
                     content: message.content,
                     reasoning_content: message.reasoning,
@@ -99,7 +99,7 @@ export function toChatCompletions(
     return { model: config.model, messages: chatCompletionsMessages }
 }
 
-export function fromChatCompletions(message: OpenAIChatCompletionMessage): {
+function fromChatCompletions(message: ChatCompletionMessage): {
     assistantMessage: AssistantMessage
     toolCallMessages: ToolCallMessage[]
 } {
