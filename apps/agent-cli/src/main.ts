@@ -1,8 +1,8 @@
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
-import { Config, Message, Provider, Response } from './types'
-import { DeepSeekProvider } from './providers'
+import { Config, Message, Provider, Response } from '@spai/core'
+import { DeepSeekProvider } from '@spai/core'
 
 const EXIT_COMMANDS = new Set([':q', ':quit', ':exit'])
 
@@ -13,13 +13,13 @@ function printWelcome() {
 function printResponse(response: Response) {
     const { assistantMessage, toolCallMessages } = response
     if (assistantMessage.reasoning !== undefined) {
-        console.log(`[reasoning]\n${assistantMessage.reasoning}`)
+        console.log(`[reasoning]\n${assistantMessage.reasoning}\n`)
     }
     if (assistantMessage.content !== undefined) {
-        console.log(`[reasoning]\n${assistantMessage.content}`)
+        console.log(`[assistant]\n${assistantMessage.content}\n`)
     }
     for (const toolCall of toolCallMessages) {
-        console.log(`[tool-call]\n ${toolCall.name}(${toolCall.arguments})`)
+        console.log(`[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n`)
     }
 }
 

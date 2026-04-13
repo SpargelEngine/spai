@@ -48,19 +48,6 @@ export function toChatCompletions(
 
     let lastAssistant: OpenAIChatCompletionMessage | undefined = undefined
 
-    // const flushPending = () => {
-    //     if (pendingReasoning !== undefined || pendingToolCalls.length !== 0) {
-    //         chatCompletionsMessages.push({
-    //             role: 'assistant',
-    //             content: '',
-    //             reasoning_content: pendingReasoning,
-    //             tool_calls: pendingToolCalls,
-    //         })
-    //     }
-
-    //     pendingToolCalls = []
-    // }
-
     for (const message of messages) {
         switch (message.role) {
             case 'user': {
