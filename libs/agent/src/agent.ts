@@ -1,4 +1,5 @@
 import {
+    Config,
     Message,
     Provider,
     ToolCallMessage,
@@ -42,6 +43,11 @@ export type AgentEvent =
 
 export type EventHandler = (event: AgentEvent) => void
 
+export interface AgentConfig {
+    provider: Provider
+    modelConfig: Config
+}
+
 // NOTE(tianjiao):
 // - When an agent is created, the set of tools must be frozen.
 //   Rationale: Changing tools will invalidate the entire prefix cache.
@@ -51,7 +57,7 @@ export class Agent {
     private readonly nameToTool: Map<string, Tool>
 
     constructor(
-        private provider: Provider,
+        private config: AgentConfig,
         private readonly tools: Tool[],
         private eventHandler: EventHandler
     ) {
@@ -80,16 +86,10 @@ export class Agent {
 
             this.emitEvent({ kind: 'subturn-start', turnId, iteration })
 
-            // TODO(tianjiao):
-            // - Move config into `ModelClient` which bundles `Provider` and `Config`.
-            // - Support tool calls.
             const { assistantMessage, toolCallMessages } =
-                await this.provider.generate(
+                await this.config.provider.generate(
                     this.history,
-                    {
-                        model: 'deepseek-chat',
-                        thinking: true,
-                    },
+                    this.config.modelConfig,
                     this.toolSpecs
                 )
 
@@ -114,6 +114,7 @@ export class Agent {
         }
     }
 
+    // TODO(tianjiao): Emit tool call events.
     private async runToolBatch(
         toolCallMessages: ToolCallMessage[]
     ): Promise<ToolResultMessage[]> {
