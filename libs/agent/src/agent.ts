@@ -1,24 +1,44 @@
-import * as z from 'zod'
-
 import {
     Message,
     Provider,
     ToolCallMessage,
     ToolResultMessage,
+    ToolSpec,
 } from '@spai/core'
 
-export type ToolSpec<TInput> = {
-    name: string
-    description: string
-    inputSchema: z.ZodType<TInput>
-}
-
-export interface Tool<TInput> {
-    readonly spec: ToolSpec<TInput>
-    execute: (params: TInput) => Promise<string>
+// Example:
+// ```
+// class WeatherTool implements Tool {
+//     readonly schema = z.object({ city: z.string() })
+//
+//     getSpec(): ToolSpec {
+//         return {
+//             name: 'get-weather',
+//             description: '...',
+//             schema: this.schema.toJSONSchema(),
+//         }
+//     }
+//     async execute(params: unknown): Promise<string> {
+//         const { city } = this.schema.parse(params)
+//         return city
+//     }
+// }
+// ```
+interface Tool {
+    getSpec(): ToolSpec
+    execute(params: unknown): Promise<string>
 }
 
 export class ToolRegistry {
+    readonly specs: ToolSpec[]
+
+    constructor(private readonly tools: Tool[]) {
+        this.specs = []
+        for (const tool of this.tools) {
+            this.specs.push(tool.getSpec())
+        }
+    }
+
     async handleToolCall(
         toolCall: ToolCallMessage
     ): Promise<ToolResultMessage> {

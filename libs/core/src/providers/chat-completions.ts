@@ -4,8 +4,8 @@ import {
     Message,
     Provider,
     Response,
-    Tool,
     ToolCallMessage,
+    ToolSpec,
 } from '../types'
 
 interface ChatCompletionsRequest {
@@ -134,7 +134,7 @@ export class DeepSeekProvider implements Provider {
     async generate(
         messages: Message[],
         config: Config,
-        _tools?: Tool[]
+        _tools?: ToolSpec[]
     ): Promise<Response> {
         const request = toChatCompletions(messages, config)
 

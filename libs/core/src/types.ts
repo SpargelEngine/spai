@@ -40,10 +40,10 @@ export interface TokenUsage {
     outputTokens: number
 }
 
-export interface Tool {
+export interface ToolSpec {
     name: string
     description: string
-    parameters: object // json-schema
+    schema: object // json-schema
 }
 
 export interface Config {
@@ -55,6 +55,6 @@ export interface Provider {
     generate(
         messages: Message[],
         config: Config,
-        tools?: Tool[]
+        tools?: ToolSpec[]
     ): Promise<Response>
 }
