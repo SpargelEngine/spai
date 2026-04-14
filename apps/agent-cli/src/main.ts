@@ -60,8 +60,10 @@ async function runChatCli(provider: Provider) {
             })
 
             const response = await provider.generate(history, config)
-            history.push(response.assistantMessage)
-            history.concat(response.toolCallMessages)
+            history.push(
+                response.assistantMessage,
+                ...response.toolCallMessages
+            )
 
             printResponse(response)
         }
