@@ -29,24 +29,6 @@ interface Tool {
     execute(params: unknown): Promise<string>
 }
 
-export class ToolRegistry {
-    readonly specs: ToolSpec[]
-
-    constructor(private readonly tools: Tool[]) {
-        this.specs = []
-        for (const tool of this.tools) {
-            this.specs.push(tool.getSpec())
-        }
-    }
-
-    async handleToolCall(
-        toolCall: ToolCallMessage
-    ): Promise<ToolResultMessage> {
-        // TODO(tianjiao): Invoke tools.
-        return { role: 'tool-result', id: toolCall.id, content: '(none)' }
-    }
-}
-
 export type AgentEvent =
     | { kind: 'turn-start'; turnId: string; prompt: string }
     | {
@@ -65,13 +47,22 @@ export type EventHandler = (event: AgentEvent) => void
 //   Rationale: Changing tools will invalidate the entire prefix cache.
 export class Agent {
     private history: Message[]
+    private readonly toolSpecs: ToolSpec[]
+    private readonly nameToTool: Map<string, Tool>
 
     constructor(
         private provider: Provider,
-        private toolRegistry: ToolRegistry,
+        private readonly tools: Tool[],
         private eventHandler: EventHandler
     ) {
         this.history = []
+        this.toolSpecs = []
+        this.nameToTool = new Map()
+        for (const tool of this.tools) {
+            const spec = tool.getSpec()
+            this.toolSpecs.push(spec)
+            this.nameToTool.set(spec.name, tool)
+        }
     }
 
     // One turn means user gives a prompt, and the agent works until a final `content` is presented to the user.
@@ -93,10 +84,14 @@ export class Agent {
             // - Move config into `ModelClient` which bundles `Provider` and `Config`.
             // - Support tool calls.
             const { assistantMessage, toolCallMessages } =
-                await this.provider.generate(this.history, {
-                    model: 'deepseek-chat',
-                    thinking: true,
-                })
+                await this.provider.generate(
+                    this.history,
+                    {
+                        model: 'deepseek-chat',
+                        thinking: true,
+                    },
+                    this.toolSpecs
+                )
 
             this.history.push(assistantMessage, ...toolCallMessages)
 
@@ -124,10 +119,54 @@ export class Agent {
     ): Promise<ToolResultMessage[]> {
         const resultMessages: ToolResultMessage[] = []
         for (const toolCall of toolCallMessages) {
-            const result = await this.toolRegistry.handleToolCall(toolCall)
+            const result = await this.handleToolCall(toolCall)
             resultMessages.push(result)
         }
         return resultMessages
+    }
+
+    async handleToolCall(
+        toolCall: ToolCallMessage
+    ): Promise<ToolResultMessage> {
+        const tool = this.nameToTool.get(toolCall.name)
+
+        if (tool === undefined) {
+            return {
+                role: 'tool-result',
+                id: toolCall.id,
+                content: `error: unknown tool \`${toolCall.name}\``,
+            }
+        }
+
+        let params: unknown
+
+        try {
+            params = JSON.parse(toolCall.arguments)
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                return {
+                    role: 'tool-result',
+                    id: toolCall.id,
+                    content: `error: invalid json ${error.message}`,
+                }
+            }
+            return {
+                role: 'tool-result',
+                id: toolCall.id,
+                content: `error: unknown error executing tool`,
+            }
+        }
+
+        try {
+            const content = await tool.execute(params)
+            return { role: 'tool-result', id: toolCall.id, content }
+        } catch (_error) {
+            return {
+                role: 'tool-result',
+                id: toolCall.id,
+                content: `error: unknown error executing tool`,
+            }
+        }
     }
 
     private emitEvent(event: AgentEvent) {
