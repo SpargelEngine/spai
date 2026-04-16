@@ -2,10 +2,13 @@
   "files": [],
   "references": [
     {
-      "path": "apps/agent-cli"
+      "path": "libs/core"
     },
     {
-      "path": "libs/core"
+      "path": "libs/agent"
+    },
+    {
+      "path": "apps/agent-cli"
     }
   ]
 }

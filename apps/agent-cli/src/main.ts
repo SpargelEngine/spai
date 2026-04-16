@@ -2,18 +2,24 @@ import fs from 'node:fs'
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
-import { Config, Message, Provider, Response } from '@spai/core'
-import { ChatCompletionsProvider } from '@spai/core'
+import { Agent, AgentEvent } from '@spai/agent'
+import { ChatCompletionsProvider, Config, Provider } from '@spai/core'
 
 import { cliConfigSchema } from './config'
+
+const EXIT_COMMANDS = new Set(['q', 'quit', 'exit'])
 
 function printWelcome() {
     console.log('hint: Type a message and press enter. Type ":q" to quit.')
 }
 
-function printResponse({ assistantMessage, toolCallMessages }: Response) {
-    console.log('================')
+function printAgentEvent(event: AgentEvent) {
+    if (event.kind !== 'model-finish') {
+        return
+    }
 
+    const { assistantMessage, toolCallMessages } = event
+    console.log('================')
     if (assistantMessage.reasoning !== undefined) {
         console.log(`[reasoning]\n${assistantMessage.reasoning}\n`)
     }
@@ -27,7 +33,7 @@ function printResponse({ assistantMessage, toolCallMessages }: Response) {
     console.log('================')
 }
 
-async function runChatCli(provider: Provider, config: Config) {
+async function runChatCli(agent: Agent, config: Config) {
     let statusLine = `Model: ${config.model}`
     if (config.thinking) {
         statusLine += ' (thinking)'
@@ -39,7 +45,6 @@ async function runChatCli(provider: Provider, config: Config) {
         input: process.stdin,
         output: process.stdout,
     })
-    const history: Message[] = []
 
     printWelcome()
 
@@ -56,30 +61,18 @@ async function runChatCli(provider: Provider, config: Config) {
 
                 if (components.length > 0) {
                     const cmd = components[0]
-                    const _args = components.slice(1)
 
-                    if (new Set(['q', 'quit', 'exit']).has(cmd)) {
+                    if (EXIT_COMMANDS.has(cmd)) {
                         break
                     } else if (cmd === 'history') {
-                        console.log(history)
+                        console.log(agent.getHistory())
                     }
                 }
 
                 continue
             }
 
-            history.push({
-                role: 'user',
-                content: input,
-            })
-
-            const response = await provider.generate(history, config)
-            history.push(
-                response.assistantMessage,
-                ...response.toolCallMessages
-            )
-
-            printResponse(response)
+            await agent.runTurn(input)
         }
     } finally {
         rl.close()
@@ -93,28 +86,34 @@ async function main() {
         return
     }
 
-    const config = cliConfigSchema.parse(
+    const cliConfig = cliConfigSchema.parse(
         JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
     )
 
-    let provider: Provider
-    switch (config.provider.type) {
-        case 'chat-completions': {
-            provider = new ChatCompletionsProvider(
-                config.provider.subType,
-                config.provider.url,
-                fs.readFileSync(config.apiKeyFile, 'utf8').trim()
-            )
-            break
+    const provider: Provider = (() => {
+        switch (cliConfig.provider.type) {
+            case 'chat-completions':
+                return new ChatCompletionsProvider(
+                    cliConfig.provider.subType,
+                    cliConfig.provider.url,
+                    fs.readFileSync(cliConfig.apiKeyFile, 'utf8').trim()
+                )
         }
-    }
+    })()
 
-    const modelConfig: Config = {
-        model: config.model,
-        thinking: config.thinking,
+    const config: Config = {
+        model: cliConfig.model,
+        thinking: cliConfig.thinking,
     }
-
-    await runChatCli(provider, modelConfig)
+    const agent = new Agent(
+        {
+            provider,
+            modelConfig: config,
+        },
+        [],
+        printAgentEvent
+    )
+    await runChatCli(agent, config)
 }
 
 void main().catch((error: unknown) => {

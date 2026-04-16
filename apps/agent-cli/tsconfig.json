@@ -4,5 +4,13 @@
     "rootDir": "src",
     "types": ["node"]
   },
+  "references": [
+    {
+      "path": "../../libs/agent"
+    },
+    {
+      "path": "../../libs/core"
+    }
+  ],
   "extends": "../../tsconfig.base.json"
 }

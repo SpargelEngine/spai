@@ -1,6 +1,7 @@
 import debug from 'debug'
 
 import {
+    AssistantMessage,
     Config,
     Message,
     Provider,
@@ -47,7 +48,13 @@ export type AgentEvent =
           outputText: string
       }
     | { kind: 'subturn-start'; turnId: string; iteration: number }
-    | { kind: 'model-finish'; turnId: string; iteration: number }
+    | {
+          kind: 'model-finish'
+          turnId: string
+          iteration: number
+          assistantMessage: AssistantMessage
+          toolCallMessages: ToolCallMessage[]
+      }
 
 export type EventHandler = (event: AgentEvent) => void
 
@@ -103,7 +110,13 @@ export class Agent {
 
             this.history.push(assistantMessage, ...toolCallMessages)
 
-            this.emitEvent({ kind: 'model-finish', turnId, iteration })
+            this.emitEvent({
+                kind: 'model-finish',
+                turnId,
+                iteration,
+                assistantMessage,
+                toolCallMessages,
+            })
 
             if (toolCallMessages.length === 0) {
                 const outputText = assistantMessage.content ?? ''
@@ -121,6 +134,10 @@ export class Agent {
             const toolResultMessages = await this.runToolBatch(toolCallMessages)
             this.history.push(...toolResultMessages)
         }
+    }
+
+    getHistory(): readonly Message[] {
+        return this.history
     }
 
     // TODO(tianjiao): Emit tool call events.
