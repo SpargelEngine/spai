@@ -1,17 +1,19 @@
+import fs from 'node:fs'
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
 import { Config, Message, Provider, Response } from '@spai/core'
-import { DeepSeekProvider } from '@spai/core'
+import { ChatCompletionsProvider } from '@spai/core'
 
-const EXIT_COMMANDS = new Set([':q', ':quit', ':exit'])
+import { cliConfigSchema } from './config'
 
 function printWelcome() {
     console.log('hint: Type a message and press enter. Type ":q" to quit.')
 }
 
-function printResponse(response: Response) {
-    const { assistantMessage, toolCallMessages } = response
+function printResponse({ assistantMessage, toolCallMessages }: Response) {
+    console.log('================')
+
     if (assistantMessage.reasoning !== undefined) {
         console.log(`[reasoning]\n${assistantMessage.reasoning}\n`)
     }
@@ -21,14 +23,11 @@ function printResponse(response: Response) {
     for (const toolCall of toolCallMessages) {
         console.log(`[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n`)
     }
+
+    console.log('================')
 }
 
-async function runChatCli(provider: Provider) {
-    const config: Config = {
-        model: 'deepseek-chat',
-        thinking: true,
-    }
-
+async function runChatCli(provider: Provider, config: Config) {
     let statusLine = `Model: ${config.model}`
     if (config.thinking) {
         statusLine += ' (thinking)'
@@ -46,12 +45,27 @@ async function runChatCli(provider: Provider) {
 
     try {
         while (true) {
-            const input = (await rl.question('[you]\n')).trim()
+            const input = (await rl.question('[user] > ')).trim()
+
             if (input === '') {
                 continue
             }
-            if (EXIT_COMMANDS.has(input.toLowerCase())) {
-                break
+
+            if (input.startsWith(':')) {
+                const components = input.slice(1).split(' ')
+
+                if (components.length > 0) {
+                    const cmd = components[0]
+                    const _args = components.slice(1)
+
+                    if (new Set(['q', 'quit', 'exit']).has(cmd)) {
+                        break
+                    } else if (cmd === 'history') {
+                        console.log(history)
+                    }
+                }
+
+                continue
             }
 
             history.push({
@@ -73,8 +87,34 @@ async function runChatCli(provider: Provider) {
 }
 
 async function main() {
-    const apiKey = process.env.DEEPSEEK_API_KEY ?? '<DUMMY>'
-    await runChatCli(new DeepSeekProvider('https://api.deepseek.com', apiKey))
+    if (process.argv.length <= 2) {
+        console.log(`Usage: node ${process.argv[1]} <config.json>`)
+        process.exitCode = 1
+        return
+    }
+
+    const config = cliConfigSchema.parse(
+        JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+    )
+
+    let provider: Provider
+    switch (config.provider.type) {
+        case 'chat-completions': {
+            provider = new ChatCompletionsProvider(
+                config.provider.subType,
+                config.provider.url,
+                fs.readFileSync(config.apiKeyFile, 'utf8').trim()
+            )
+            break
+        }
+    }
+
+    const modelConfig: Config = {
+        model: config.model,
+        thinking: config.thinking,
+    }
+
+    await runChatCli(provider, modelConfig)
 }
 
 void main().catch((error: unknown) => {

@@ -17,13 +17,14 @@
     "test": "jest"
   },
   "dependencies": {
-    "@spai/core": "workspace:",
-    "zod": "^4.3.6"
+    "@spai/core": "workspace:^",
+    "debug": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/debug": "catalog:",
     "@types/jest": "catalog:",
     "jest": "catalog:",
-    "tsx": "^4.21.0",
     "typescript": "catalog:"
   }
 }

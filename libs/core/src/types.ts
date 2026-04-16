@@ -48,7 +48,7 @@ export interface ToolSpec {
 
 export interface Config {
     model: string
-    thinking: boolean
+    thinking?: boolean
 }
 
 export interface Provider {

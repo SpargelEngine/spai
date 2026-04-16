@@ -1,3 +1,5 @@
+import debug from 'debug'
+
 import {
     AssistantMessage,
     Config,
@@ -8,13 +10,18 @@ import {
     ToolSpec,
 } from '../types'
 
+const d = debug('spai:provider:chat-completion')
+
 interface ChatCompletionsRequest {
     model: string
-    messages: ChatCompletionMessage[]
-    thinking?: { type: 'enabled' }
+    messages: ChatCompletionsMessage[]
+    tools?: ChatCompletionsTool[]
+
+    // DeepSeek
+    thinking?: { type: 'enabled' | 'disabled' }
 }
 
-type ChatCompletionMessage =
+type ChatCompletionsMessage =
     | {
           role: 'user'
           content: string
@@ -23,7 +30,7 @@ type ChatCompletionMessage =
           role: 'assistant'
           content?: string
           reasoning_content?: string
-          tool_calls?: ChatCompletionToolCall[]
+          tool_calls?: ChatCompletionsToolCall[]
       }
     | {
           role: 'tool'
@@ -31,7 +38,16 @@ type ChatCompletionMessage =
           tool_call_id: string
       }
 
-interface ChatCompletionToolCall {
+interface ChatCompletionsTool {
+    type: 'function'
+    function: {
+        description: string
+        name: string
+        parameters: object
+    }
+}
+
+interface ChatCompletionsToolCall {
     id: string
     type: 'function'
     function: {
@@ -42,11 +58,12 @@ interface ChatCompletionToolCall {
 
 function toChatCompletions(
     messages: Message[],
-    config: Config
+    config: Config,
+    tools?: ToolSpec[]
 ): ChatCompletionsRequest {
-    const chatCompletionsMessages: ChatCompletionMessage[] = []
+    const chatCompletionsMessages: ChatCompletionsMessage[] = []
 
-    let lastAssistant: ChatCompletionMessage | undefined = undefined
+    let lastAssistantMessage: ChatCompletionsMessage | undefined = undefined
 
     for (const message of messages) {
         switch (message.role) {
@@ -58,24 +75,24 @@ function toChatCompletions(
                 break
             }
             case 'assistant': {
-                const chatCompletionsMessage: ChatCompletionMessage = {
+                const chatCompletionsMessage: ChatCompletionsMessage = {
                     role: 'assistant',
                     content: message.content,
                     reasoning_content: message.reasoning,
                     tool_calls: undefined,
                 }
-                lastAssistant = chatCompletionsMessage
+                lastAssistantMessage = chatCompletionsMessage
                 chatCompletionsMessages.push(chatCompletionsMessage)
                 break
             }
             case 'tool-call': {
-                if (lastAssistant === undefined) {
+                if (lastAssistantMessage === undefined) {
                     throw Error('tool-call cannot occur before assistant')
                 }
-                if (lastAssistant.tool_calls === undefined) {
-                    lastAssistant.tool_calls = []
+                if (lastAssistantMessage.tool_calls === undefined) {
+                    lastAssistantMessage.tool_calls = []
                 }
-                lastAssistant.tool_calls.push({
+                lastAssistantMessage.tool_calls.push({
                     id: message.id,
                     type: 'function',
                     function: {
@@ -96,69 +113,97 @@ function toChatCompletions(
         }
     }
 
-    return { model: config.model, messages: chatCompletionsMessages }
+    const chatCompletionsTools = tools?.map((toolSpec) => {
+        return {
+            type: 'function',
+            function: {
+                description: toolSpec.description,
+                name: toolSpec.name,
+                parameters: toolSpec.schema,
+            },
+        } as ChatCompletionsTool
+    })
+
+    return {
+        model: config.model,
+        messages: chatCompletionsMessages,
+        tools: chatCompletionsTools,
+    }
 }
 
-function fromChatCompletions(message: ChatCompletionMessage): {
+function fromChatCompletions(message: ChatCompletionsMessage): {
     assistantMessage: AssistantMessage
     toolCallMessages: ToolCallMessage[]
 } {
+    if (message.role !== 'assistant') {
+        throw Error(`unsupported role: '${message.role}'`)
+    }
+
     const assistantMessage: AssistantMessage = {
         role: 'assistant',
+        reasoning: message.reasoning_content,
+        content: message.content,
     }
-    const toolCallMessages: ToolCallMessage[] = []
-    if (message.role !== 'assistant') {
-        throw Error('unsupported role')
-    }
-    assistantMessage.reasoning = message.reasoning_content
-    assistantMessage.content = message.content
-    if (message.tool_calls !== undefined) {
-        for (const tool_call of message.tool_calls) {
-            toolCallMessages.push({
+
+    const toolCallMessages =
+        message.tool_calls?.map((tool_call) => {
+            return {
                 role: 'tool-call',
                 id: tool_call.id,
                 name: tool_call.function.name,
                 arguments: tool_call.function.arguments,
-            })
-        }
-    }
+            } as ToolCallMessage
+        }) ?? []
+
     return { assistantMessage, toolCallMessages }
 }
 
-export class DeepSeekProvider implements Provider {
+export type ChatCompletionsProviderType = 'general' | 'deepseek'
+
+const debugGen = d.extend('generate')
+
+export class ChatCompletionsProvider implements Provider {
     constructor(
-        private baseUrl: string | URL,
+        private providerType: ChatCompletionsProviderType,
+        private url: string | URL,
         private apiKey: string
     ) {}
+
+    processRequest(request: ChatCompletionsRequest, config: Config) {
+        if (config.thinking !== undefined) {
+            switch (this.providerType) {
+                case 'deepseek': {
+                    request.thinking = {
+                        type: config.thinking ? 'enabled' : 'disabled',
+                    }
+                    break
+                }
+            }
+        }
+    }
 
     async generate(
         messages: Message[],
         config: Config,
-        _tools?: ToolSpec[]
+        tools?: ToolSpec[]
     ): Promise<Response> {
-        const request = toChatCompletions(messages, config)
-
-        if (config.thinking) {
-            request.thinking = { type: 'enabled' }
-        }
-
-        console.log(request)
+        const request = toChatCompletions(messages, config, tools)
+        this.processRequest(request, config)
+        debugGen(request)
 
         const headers = new Headers()
         headers.append('Content-Type', 'application/json')
         headers.append('Authorization', `Bearer ${this.apiKey}`)
-        const response = await fetch(
-            new URL('/chat/completions', this.baseUrl),
-            {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(request),
-            }
-        )
+        const response = await fetch(this.url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(request),
+        })
         if (response.status !== 200) {
             console.log(response)
-            throw Error('bad response')
+            throw Error(`bad response HTTP status code: ${response.status}`)
         }
+
         const json = await response.json()
         const message = json.choices[0].message
         const { assistantMessage, toolCallMessages } =

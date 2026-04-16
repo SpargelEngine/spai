@@ -1,3 +1,5 @@
+import debug from 'debug'
+
 import {
     Config,
     Message,
@@ -7,24 +9,30 @@ import {
     ToolSpec,
 } from '@spai/core'
 
-// Example:
-// ```
-// class WeatherTool implements Tool {
-//     readonly schema = z.object({ city: z.string() })
-//
-//     getSpec(): ToolSpec {
-//         return {
-//             name: 'get-weather',
-//             description: '...',
-//             schema: this.schema.toJSONSchema(),
-//         }
-//     }
-//     async execute(params: unknown): Promise<string> {
-//         const { city } = this.schema.parse(params)
-//         return city
-//     }
-// }
-// ```
+const d = debug('spai:agent')
+
+/**
+ * @example
+ * // import z from 'zod'
+ * class GetWeatherTool implements Tool {
+ *     readonly schema = z.object({
+ *         location: z.string().describe('The city and state, e.g. San Francisco, CA'),
+ *     })
+ *
+ *     getSpec(): ToolSpec {
+ *         return {
+ *             name: 'get_weather',
+ *             description: 'Get weather of a location, the user should supply a location first.',
+ *             schema: this.schema.toJSONSchema(),
+ *         }
+ *     }
+ *
+ *     async execute(params: unknown): Promise<string> {
+ *         const { location } = this.schema.parse(params)
+ *         return '24℃'
+ *     }
+ * }
+ */
 interface Tool {
     getSpec(): ToolSpec
     execute(params: unknown): Promise<string>
@@ -109,6 +117,7 @@ export class Agent {
                 // TODO(tianjiao): Return `TurnResult`.
                 return
             }
+
             const toolResultMessages = await this.runToolBatch(toolCallMessages)
             this.history.push(...toolResultMessages)
         }
@@ -135,7 +144,7 @@ export class Agent {
             return {
                 role: 'tool-result',
                 id: toolCall.id,
-                content: `error: unknown tool \`${toolCall.name}\``,
+                content: `error: unknown tool '${toolCall.name}'`,
             }
         }
 
@@ -148,7 +157,7 @@ export class Agent {
                 return {
                     role: 'tool-result',
                     id: toolCall.id,
-                    content: `error: invalid json ${error.message}`,
+                    content: `error: invalid json: ${error.message}`,
                 }
             }
             return {
@@ -171,6 +180,7 @@ export class Agent {
     }
 
     private emitEvent(event: AgentEvent) {
+        d(event)
         this.eventHandler(event)
     }
 }

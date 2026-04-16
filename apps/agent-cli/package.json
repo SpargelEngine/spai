@@ -16,11 +16,13 @@
     "run": "node dist/main.js"
   },
   "dependencies": {
-    "@spai/core": "workspace:"
+    "@spai/agent": "workspace:^",
+    "@spai/core": "workspace:^",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
     "@types/jest": "catalog:",
+    "@types/node": "catalog:",
     "jest": "catalog:",
     "typescript": "catalog:"
   }
