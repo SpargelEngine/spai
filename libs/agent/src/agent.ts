@@ -63,6 +63,10 @@ export interface AgentConfig {
     modelConfig: Config
 }
 
+function createToolResult(id: string, content: string): ToolResultMessage {
+    return { role: 'tool-result', id, content }
+}
+
 // NOTE(tianjiao):
 // - When an agent is created, the set of tools must be frozen.
 //   Rationale: Changing tools will invalidate the entire prefix cache.
@@ -71,8 +75,9 @@ export class Agent {
     private readonly toolSpecs: ToolSpec[]
     private readonly nameToTool: Map<string, Tool>
 
+    // TODO(tianjiao): Combine `Tool[]` and `AgentConfig`.
     constructor(
-        private config: AgentConfig,
+        private readonly config: AgentConfig,
         private readonly tools: Tool[],
         private eventHandler: EventHandler
     ) {
@@ -86,7 +91,8 @@ export class Agent {
         }
     }
 
-    // One turn means user gives a prompt, and the agent works until a final `content` is presented to the user.
+    // One turn means user gives a prompt, and the agent works until a final
+    // `content` is presented to the user.
     async runTurn(prompt: string) {
         const turnId = crypto.randomUUID()
 
@@ -158,11 +164,10 @@ export class Agent {
         const tool = this.nameToTool.get(toolCall.name)
 
         if (tool === undefined) {
-            return {
-                role: 'tool-result',
-                id: toolCall.id,
-                content: `error: unknown tool '${toolCall.name}'`,
-            }
+            return createToolResult(
+                toolCall.id,
+                `error: unknown tool '${toolCall.name}'`
+            )
         }
 
         let params: unknown
@@ -171,28 +176,25 @@ export class Agent {
             params = JSON.parse(toolCall.arguments)
         } catch (error) {
             if (error instanceof SyntaxError) {
-                return {
-                    role: 'tool-result',
-                    id: toolCall.id,
-                    content: `error: invalid json: ${error.message}`,
-                }
+                return createToolResult(
+                    toolCall.id,
+                    `error: invalid json: ${error.message}`
+                )
             }
-            return {
-                role: 'tool-result',
-                id: toolCall.id,
-                content: `error: unknown error executing tool`,
-            }
+            return createToolResult(
+                toolCall.id,
+                `error: unknown error executing tool`
+            )
         }
 
         try {
             const content = await tool.execute(params)
-            return { role: 'tool-result', id: toolCall.id, content }
+            return createToolResult(toolCall.id, content)
         } catch (_error) {
-            return {
-                role: 'tool-result',
-                id: toolCall.id,
-                content: `error: unknown error executing tool`,
-            }
+            return createToolResult(
+                toolCall.id,
+                `error: unknown error executing tool`
+            )
         }
     }
 

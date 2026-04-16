@@ -25,6 +25,7 @@
     "@types/debug": "catalog:",
     "@types/jest": "catalog:",
     "jest": "catalog:",
+    "ts-jest": "catalog:",
     "typescript": "catalog:"
   }
 }
