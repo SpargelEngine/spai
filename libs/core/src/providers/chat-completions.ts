@@ -73,25 +73,18 @@ function toChatCompletions(
                 break
             }
             case 'assistant': {
-                let toolCalls: ChatCompletionsToolCall[] | undefined = undefined
-                if (message.toolCalls.length !== 0) {
-                    toolCalls = []
-                    for (const call of message.toolCalls) {
-                        toolCalls.push({
-                            id: call.id,
-                            type: 'function',
-                            function: {
-                                name: call.name,
-                                arguments: call.arguments,
-                            },
-                        })
-                    }
-                }
                 chatCompletionsMessages.push({
                     role: 'assistant',
                     content: message.content,
                     reasoning_content: message.reasoning,
-                    tool_calls: toolCalls,
+                    tool_calls: message.toolCalls?.map((toolCall) => ({
+                        id: toolCall.id,
+                        type: 'function',
+                        function: {
+                            name: toolCall.name,
+                            arguments: toolCall.arguments,
+                        },
+                    })),
                 })
                 break
             }
@@ -135,15 +128,15 @@ function fromChatCompletions(
         role: 'assistant',
         reasoning: message.reasoning_content,
         content: message.content,
-        toolCalls:
-            message.tool_calls?.map((tool_call) => {
-                return {
+        toolCalls: message.tool_calls?.map(
+            (tool_call) =>
+                ({
                     role: 'tool-call',
                     id: tool_call.id,
                     name: tool_call.function.name,
                     arguments: tool_call.function.arguments,
-                } as ToolCall
-            }) ?? [],
+                }) as ToolCall
+        ),
     }
     return assistantMessage
 }

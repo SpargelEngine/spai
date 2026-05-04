@@ -121,7 +121,7 @@ export class Agent {
                 message,
             })
 
-            if (message.toolCalls.length === 0) {
+            if (message.toolCalls === undefined) {
                 const outputText = message.content ?? ''
                 // TODO(tianjiao): Handle thinking.
                 this.emitEvent({

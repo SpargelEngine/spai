@@ -4,7 +4,7 @@ export type AssistantMessage = {
     role: 'assistant'
     content?: string
     reasoning?: string
-    toolCalls: ToolCall[]
+    toolCalls?: ToolCall[]
 }
 
 export type ToolCall = {

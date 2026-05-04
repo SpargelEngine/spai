@@ -26,9 +26,9 @@ function printAgentEvent(event: AgentEvent) {
     if (message.content !== undefined) {
         console.log(`[assistant]\n${message.content}\n`)
     }
-    for (const toolCall of message.toolCalls) {
+    message.toolCalls?.forEach((toolCall) => {
         console.log(`[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n`)
-    }
+    })
 
     console.log('================')
 }
