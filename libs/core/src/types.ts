@@ -4,33 +4,27 @@ export type AssistantMessage = {
     role: 'assistant'
     content?: string
     reasoning?: string
-    signature?: string
+    toolCalls: ToolCall[]
 }
 
-export type ToolCallMessage = {
-    role: 'tool-call'
+export type ToolCall = {
     id: string
     name: string
     arguments: string
 }
 
-export type ToolResultMessage = {
-    role: 'tool-result'
+export type ToolMessage = {
+    role: 'tool'
     id: string
     content: string
 }
 
-export type Message =
-    | UserMessage
-    | AssistantMessage
-    | ToolCallMessage
-    | ToolResultMessage
+export type Message = UserMessage | AssistantMessage | ToolMessage
 
 export type FinishReason = 'stop' | 'length' | 'tool-call' | 'error'
 
 export interface Response {
-    assistantMessage: AssistantMessage
-    toolCallMessages: ToolCallMessage[]
+    message: AssistantMessage
     tokenUsage?: TokenUsage
     finishReason: FinishReason
 }
@@ -43,12 +37,16 @@ export interface TokenUsage {
 export interface ToolSpec {
     name: string
     description: string
+    // TODO(tianjiao): Use a typed version for json-schema objects.
     schema: object // json-schema
 }
+
+export type ThinkingEffort = 'high' | 'max'
 
 export interface Config {
     model: string
     thinking?: boolean
+    thinkingEffort?: ThinkingEffort
 }
 
 export interface Provider {

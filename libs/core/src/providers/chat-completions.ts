@@ -6,7 +6,7 @@ import {
     Message,
     Provider,
     Response,
-    ToolCallMessage,
+    ToolCall,
     ToolSpec,
 } from '../types'
 
@@ -56,15 +56,13 @@ interface ChatCompletionsToolCall {
     }
 }
 
+// TODO(tianjiao): Find a better design.
 function toChatCompletions(
     messages: Message[],
     config: Config,
     tools?: ToolSpec[]
 ): ChatCompletionsRequest {
     const chatCompletionsMessages: ChatCompletionsMessage[] = []
-
-    let lastAssistantMessage: ChatCompletionsMessage | undefined = undefined
-
     for (const message of messages) {
         switch (message.role) {
             case 'user': {
@@ -75,34 +73,29 @@ function toChatCompletions(
                 break
             }
             case 'assistant': {
-                const chatCompletionsMessage: ChatCompletionsMessage = {
+                let toolCalls: ChatCompletionsToolCall[] | undefined = undefined
+                if (message.toolCalls.length !== 0) {
+                    toolCalls = []
+                    for (const call of message.toolCalls) {
+                        toolCalls.push({
+                            id: call.id,
+                            type: 'function',
+                            function: {
+                                name: call.name,
+                                arguments: call.arguments,
+                            },
+                        })
+                    }
+                }
+                chatCompletionsMessages.push({
                     role: 'assistant',
                     content: message.content,
                     reasoning_content: message.reasoning,
-                    tool_calls: undefined,
-                }
-                lastAssistantMessage = chatCompletionsMessage
-                chatCompletionsMessages.push(chatCompletionsMessage)
-                break
-            }
-            case 'tool-call': {
-                if (lastAssistantMessage === undefined) {
-                    throw Error('tool-call cannot occur before assistant')
-                }
-                if (lastAssistantMessage.tool_calls === undefined) {
-                    lastAssistantMessage.tool_calls = []
-                }
-                lastAssistantMessage.tool_calls.push({
-                    id: message.id,
-                    type: 'function',
-                    function: {
-                        name: message.name,
-                        arguments: message.arguments,
-                    },
+                    tool_calls: toolCalls,
                 })
                 break
             }
-            case 'tool-result': {
+            case 'tool': {
                 chatCompletionsMessages.push({
                     role: 'tool',
                     tool_call_id: message.id,
@@ -131,10 +124,9 @@ function toChatCompletions(
     }
 }
 
-function fromChatCompletions(message: ChatCompletionsMessage): {
-    assistantMessage: AssistantMessage
-    toolCallMessages: ToolCallMessage[]
-} {
+function fromChatCompletions(
+    message: ChatCompletionsMessage
+): AssistantMessage {
     if (message.role !== 'assistant') {
         throw Error(`unsupported role: '${message.role}'`)
     }
@@ -143,19 +135,17 @@ function fromChatCompletions(message: ChatCompletionsMessage): {
         role: 'assistant',
         reasoning: message.reasoning_content,
         content: message.content,
+        toolCalls:
+            message.tool_calls?.map((tool_call) => {
+                return {
+                    role: 'tool-call',
+                    id: tool_call.id,
+                    name: tool_call.function.name,
+                    arguments: tool_call.function.arguments,
+                } as ToolCall
+            }) ?? [],
     }
-
-    const toolCallMessages =
-        message.tool_calls?.map((tool_call) => {
-            return {
-                role: 'tool-call',
-                id: tool_call.id,
-                name: tool_call.function.name,
-                arguments: tool_call.function.arguments,
-            } as ToolCallMessage
-        }) ?? []
-
-    return { assistantMessage, toolCallMessages }
+    return assistantMessage
 }
 
 export type ChatCompletionsProviderType = 'general' | 'deepseek'
@@ -206,10 +196,9 @@ export class ChatCompletionsProvider implements Provider {
 
         const json = await response.json()
         const message = json.choices[0].message
-        const { assistantMessage, toolCallMessages } =
-            fromChatCompletions(message)
+        const assistantMessage = fromChatCompletions(message)
 
         // TODO(tianjiao): Fill in real finish reason.
-        return { assistantMessage, toolCallMessages, finishReason: 'stop' }
+        return { message: assistantMessage, finishReason: 'stop' }
     }
 }

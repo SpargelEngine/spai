@@ -5,8 +5,8 @@ import {
     Config,
     Message,
     Provider,
-    ToolCallMessage,
-    ToolResultMessage,
+    ToolCall,
+    ToolMessage,
     ToolSpec,
 } from '@spai/core'
 
@@ -52,8 +52,7 @@ export type AgentEvent =
           kind: 'model-finish'
           turnId: string
           iteration: number
-          assistantMessage: AssistantMessage
-          toolCallMessages: ToolCallMessage[]
+          message: AssistantMessage
       }
 
 export type EventHandler = (event: AgentEvent) => void
@@ -63,8 +62,8 @@ export interface AgentConfig {
     modelConfig: Config
 }
 
-function createToolResult(id: string, content: string): ToolResultMessage {
-    return { role: 'tool-result', id, content }
+function createToolResult(id: string, content: string): ToolMessage {
+    return { role: 'tool', id, content }
 }
 
 // NOTE(tianjiao):
@@ -107,25 +106,23 @@ export class Agent {
 
             this.emitEvent({ kind: 'subturn-start', turnId, iteration })
 
-            const { assistantMessage, toolCallMessages } =
-                await this.config.provider.generate(
-                    this.history,
-                    this.config.modelConfig,
-                    this.toolSpecs
-                )
+            const { message } = await this.config.provider.generate(
+                this.history,
+                this.config.modelConfig,
+                this.toolSpecs
+            )
 
-            this.history.push(assistantMessage, ...toolCallMessages)
+            this.history.push(message)
 
             this.emitEvent({
                 kind: 'model-finish',
                 turnId,
                 iteration,
-                assistantMessage,
-                toolCallMessages,
+                message,
             })
 
-            if (toolCallMessages.length === 0) {
-                const outputText = assistantMessage.content ?? ''
+            if (message.toolCalls.length === 0) {
+                const outputText = message.content ?? ''
                 // TODO(tianjiao): Handle thinking.
                 this.emitEvent({
                     kind: 'turn-finish',
@@ -137,7 +134,9 @@ export class Agent {
                 return
             }
 
-            const toolResultMessages = await this.runToolBatch(toolCallMessages)
+            const toolResultMessages = await this.runToolBatch(
+                message.toolCalls
+            )
             this.history.push(...toolResultMessages)
         }
     }
@@ -148,9 +147,9 @@ export class Agent {
 
     // TODO(tianjiao): Emit tool call events.
     private async runToolBatch(
-        toolCallMessages: ToolCallMessage[]
-    ): Promise<ToolResultMessage[]> {
-        const resultMessages: ToolResultMessage[] = []
+        toolCallMessages: ToolCall[]
+    ): Promise<ToolMessage[]> {
+        const resultMessages: ToolMessage[] = []
         for (const toolCall of toolCallMessages) {
             const result = await this.handleToolCall(toolCall)
             resultMessages.push(result)
@@ -158,9 +157,7 @@ export class Agent {
         return resultMessages
     }
 
-    async handleToolCall(
-        toolCall: ToolCallMessage
-    ): Promise<ToolResultMessage> {
+    async handleToolCall(toolCall: ToolCall): Promise<ToolMessage> {
         const tool = this.nameToTool.get(toolCall.name)
 
         if (tool === undefined) {

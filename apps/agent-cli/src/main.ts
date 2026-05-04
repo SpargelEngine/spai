@@ -18,15 +18,15 @@ function printAgentEvent(event: AgentEvent) {
         return
     }
 
-    const { assistantMessage, toolCallMessages } = event
+    const { message } = event
     console.log('================')
-    if (assistantMessage.reasoning !== undefined) {
-        console.log(`[reasoning]\n${assistantMessage.reasoning}\n`)
+    if (message.reasoning !== undefined) {
+        console.log(`[reasoning]\n${message.reasoning}\n`)
     }
-    if (assistantMessage.content !== undefined) {
-        console.log(`[assistant]\n${assistantMessage.content}\n`)
+    if (message.content !== undefined) {
+        console.log(`[assistant]\n${message.content}\n`)
     }
-    for (const toolCall of toolCallMessages) {
+    for (const toolCall of message.toolCalls) {
         console.log(`[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n`)
     }
 
