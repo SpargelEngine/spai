@@ -30,7 +30,11 @@ function printAgentEvent(event: AgentEvent) {
         console.log(`[assistant]\n${message.content}\n`)
     }
     message.toolCalls?.forEach((toolCall) => {
-        console.log(DIM + `[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n` + RESET)
+        console.log(
+            DIM +
+                `[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n` +
+                RESET
+        )
     })
 }
 
@@ -52,7 +56,7 @@ async function runChatCli(agent: Agent, config: Config) {
     try {
         while (true) {
             const input = (await rl.question('[user] > ')).trim()
-            console.log("")
+            console.log('')
 
             if (input === '') {
                 continue
@@ -114,6 +118,7 @@ async function main() {
             modelConfig: config,
         },
         [readFileTool],
+        [{ role: 'system', content: 'You are a helpful assistant.' }],
         printAgentEvent
     )
     await runChatCli(agent, config)

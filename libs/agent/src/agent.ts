@@ -70,7 +70,6 @@ function createToolResult(id: string, content: string): ToolMessage {
 // - When an agent is created, the set of tools must be frozen.
 //   Rationale: Changing tools will invalidate the entire prefix cache.
 export class Agent {
-    private history: Message[]
     private readonly toolSpecs: ToolSpec[]
     private readonly nameToTool: Map<string, Tool>
 
@@ -78,6 +77,7 @@ export class Agent {
     constructor(
         private readonly config: AgentConfig,
         private readonly tools: Tool[],
+        private history: Message[],
         private eventHandler: EventHandler
     ) {
         this.history = []

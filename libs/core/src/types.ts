@@ -1,5 +1,7 @@
 export type UserMessage = { role: 'user'; content: string }
 
+export type SystemMessage = { role: 'system'; content: string }
+
 export type AssistantMessage = {
     role: 'assistant'
     content?: string
@@ -19,7 +21,11 @@ export type ToolMessage = {
     content: string
 }
 
-export type Message = UserMessage | AssistantMessage | ToolMessage
+export type Message =
+    | SystemMessage
+    | UserMessage
+    | AssistantMessage
+    | ToolMessage
 
 export type FinishReason = 'stop' | 'length' | 'tool-call' | 'error'
 

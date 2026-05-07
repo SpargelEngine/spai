@@ -23,6 +23,10 @@ interface ChatCompletionsRequest {
 
 type ChatCompletionsMessage =
     | {
+          role: 'system'
+          content: string
+      }
+    | {
           role: 'user'
           content: string
       }
@@ -65,6 +69,13 @@ function toChatCompletions(
     const chatCompletionsMessages: ChatCompletionsMessage[] = []
     for (const message of messages) {
         switch (message.role) {
+            case 'system': {
+                chatCompletionsMessages.push({
+                    role: 'system',
+                    content: message.content,
+                })
+                break
+            }
             case 'user': {
                 chatCompletionsMessages.push({
                     role: 'user',
