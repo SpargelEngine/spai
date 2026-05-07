@@ -1,7 +1,7 @@
 import z from 'zod'
 
 export const cliConfigSchema = z.object({
-    apiKeyFile: z.string(),
+    apiKey: z.string(),
 
     model: z.string(),
     thinking: z.boolean().optional(),

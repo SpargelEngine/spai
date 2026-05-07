@@ -102,7 +102,7 @@ async function main() {
                 return new ChatCompletionsProvider(
                     cliConfig.provider.subType,
                     cliConfig.provider.url,
-                    fs.readFileSync(cliConfig.apiKeyFile, 'utf8').trim()
+                    cliConfig.apiKey
                 )
         }
     })()
