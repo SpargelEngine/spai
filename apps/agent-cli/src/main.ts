@@ -13,24 +13,25 @@ function printWelcome() {
     console.log('hint: Type a message and press enter. Type ":q" to quit.')
 }
 
+const DIM = '\x1b[2m'
+const RESET = '\x1b[0m'
+
 function printAgentEvent(event: AgentEvent) {
     if (event.kind !== 'model-finish') {
         return
     }
 
     const { message } = event
-    console.log('================')
+
     if (message.reasoning !== undefined) {
-        console.log(`[reasoning]\n${message.reasoning}\n`)
+        console.log(DIM + `[reasoning]\n${message.reasoning}\n` + RESET)
     }
     if (message.content !== undefined) {
         console.log(`[assistant]\n${message.content}\n`)
     }
     message.toolCalls?.forEach((toolCall) => {
-        console.log(`[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n`)
+        console.log(DIM + `[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n` + RESET)
     })
-
-    console.log('================')
 }
 
 async function runChatCli(agent: Agent, config: Config) {
@@ -51,6 +52,7 @@ async function runChatCli(agent: Agent, config: Config) {
     try {
         while (true) {
             const input = (await rl.question('[user] > ')).trim()
+            console.log("")
 
             if (input === '') {
                 continue
