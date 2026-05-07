@@ -1,29 +1,30 @@
 {
-  "name": "@spai/agent-cli",
+  "name": "@spai/provider",
   "version": "0.1.0",
-  "description": "Spai Agent",
+  "description": "Spai Providers",
   "contributors": [
     "parabola2004 <chengzhuo2004@qq.com>",
     "Tianjiao Nie <ivwumupy@gmail.com>"
   ],
   "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@spai/agent": "workspace:^",
     "@spai/core": "workspace:^",
-    "@spai/provider": "workspace:^",
-    "zod": "catalog:"
+    "debug": "catalog:"
   },
   "devDependencies": {
+    "@types/debug": "catalog:",
     "@types/jest": "catalog:",
-    "@types/node": "catalog:",
     "jest": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^4.1.5"
   }
 }

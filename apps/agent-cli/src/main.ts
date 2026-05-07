@@ -3,14 +3,15 @@ import process from 'node:process'
 import readline from 'node:readline/promises'
 
 import { Agent, AgentEvent, ReadFileTool } from '@spai/agent'
-import { ChatCompletionsProvider, Config, Provider } from '@spai/core'
+import { Config, Provider } from '@spai/core'
+import { ChatCompletionsProvider } from '@spai/provider'
 
 import { cliConfigSchema } from './config'
 
 const EXIT_COMMANDS = new Set(['q', 'quit', 'exit'])
 
 function printWelcome() {
-    console.log('hint: Type a message and press enter. Type ":q" to quit.')
+    console.log('hint: Type a message and press enter. Type ":q" to quit.\n')
 }
 
 const DIM = '\x1b[2m'

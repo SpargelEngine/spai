@@ -8,7 +8,7 @@ import {
     Response,
     ToolCall,
     ToolSpec,
-} from '../types'
+} from '@spai/core'
 
 const d = debug('spai:provider:chat-completion')
 
@@ -16,9 +16,12 @@ interface ChatCompletionsRequest {
     model: string
     messages: ChatCompletionsMessage[]
     tools?: ChatCompletionsTool[]
+    stream?: boolean
+    max_tokens?: number
 
     // DeepSeek
     thinking?: { type: 'enabled' | 'disabled' }
+    reasoning_effort?: string
 }
 
 type ChatCompletionsMessage =
@@ -70,17 +73,11 @@ function toChatCompletions(
     for (const message of messages) {
         switch (message.role) {
             case 'system': {
-                chatCompletionsMessages.push({
-                    role: 'system',
-                    content: message.content,
-                })
+                chatCompletionsMessages.push(message)
                 break
             }
             case 'user': {
-                chatCompletionsMessages.push({
-                    role: 'user',
-                    content: message.content,
-                })
+                chatCompletionsMessages.push(message)
                 break
             }
             case 'assistant': {
