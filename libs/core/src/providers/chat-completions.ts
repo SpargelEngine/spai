@@ -146,6 +146,10 @@ export type ChatCompletionsProviderType = 'general' | 'deepseek'
 const debugGen = d.extend('generate')
 
 export class ChatCompletionsProvider implements Provider {
+    // TODO(tianjiao): Remove `providerType`.
+    // - Switch to a composition API.
+    //   Example: `hasReasoningContent` indicates the provider supports DeepSeek-style
+    //   reasoning content.
     constructor(
         private providerType: ChatCompletionsProviderType,
         private url: string | URL,
@@ -172,22 +176,30 @@ export class ChatCompletionsProvider implements Provider {
     ): Promise<Response> {
         const request = toChatCompletions(messages, config, tools)
         this.processRequest(request, config)
+
+        // Record the request sent to providers.
         debugGen(request)
 
-        const headers = new Headers()
-        headers.append('Content-Type', 'application/json')
-        headers.append('Authorization', `Bearer ${this.apiKey}`)
+        const headers = new Headers({
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+        })
         const response = await fetch(this.url, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(request),
         })
         if (response.status !== 200) {
-            console.log(response)
+            debugGen(response)
             throw Error(`bad response HTTP status code: ${response.status}`)
         }
 
         const json = await response.json()
+
+        if (!Array.isArray(json.choices) || json.choices.length === 0) {
+            throw Error('response must contain a nonempty choices array')
+        }
+
         const message = json.choices[0].message
         const assistantMessage = fromChatCompletions(message)
 

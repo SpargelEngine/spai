@@ -34,7 +34,7 @@ const d = debug('spai:agent')
  *     }
  * }
  */
-interface Tool {
+export interface Tool {
     getSpec(): ToolSpec
     execute(params: unknown): Promise<string>
 }

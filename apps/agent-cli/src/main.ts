@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
-import { Agent, AgentEvent } from '@spai/agent'
+import { Agent, AgentEvent, ReadFileTool } from '@spai/agent'
 import { ChatCompletionsProvider, Config, Provider } from '@spai/core'
 
 import { cliConfigSchema } from './config'
@@ -105,12 +105,13 @@ async function main() {
         model: cliConfig.model,
         thinking: cliConfig.thinking,
     }
+    const readFileTool = new ReadFileTool()
     const agent = new Agent(
         {
             provider,
             modelConfig: config,
         },
-        [],
+        [readFileTool],
         printAgentEvent
     )
     await runChatCli(agent, config)
