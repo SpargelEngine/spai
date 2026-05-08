@@ -2,13 +2,7 @@ import fs from 'node:fs'
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
-import {
-    Agent,
-    AgentEvent,
-    BashTool,
-    EditFileTool,
-    ReadFileTool,
-} from '@spai/agent'
+import { Agent, AgentEvent, BashTool, EditFileTool } from '@spai/agent'
 import { Config, Provider } from '@spai/core'
 import { ChatCompletionsProvider } from '@spai/provider'
 
@@ -137,7 +131,7 @@ async function main() {
             provider,
             modelConfig: config,
         },
-        [new ReadFileTool(), new BashTool(), new EditFileTool()],
+        [new BashTool(), new EditFileTool()],
         [
             {
                 role: 'system',
