@@ -17,6 +17,10 @@ function printWelcome() {
 const DIM = '\x1b[2m'
 const RESET = '\x1b[0m'
 
+let totalInputTokens = 0
+let totalOutputTokens = 0
+let totalCachedTokens = 0
+
 function printAgentEvent(event: AgentEvent) {
     if (event.kind !== 'model-finish') {
         return
@@ -37,6 +41,12 @@ function printAgentEvent(event: AgentEvent) {
                 RESET
         )
     })
+
+    if (event.tokenUsage !== undefined) {
+        totalInputTokens += event.tokenUsage.inputTokens
+        totalOutputTokens += event.tokenUsage.outputTokens
+        totalCachedTokens += event.tokenUsage.cachedTokens
+    }
 }
 
 async function runChatCli(agent: Agent, config: Config) {
@@ -86,6 +96,10 @@ async function runChatCli(agent: Agent, config: Config) {
     }
 }
 
+function asPercent(num: number) {
+    return (num * 100).toFixed(1) + '%'
+}
+
 async function main() {
     if (process.argv.length <= 2) {
         console.log(`Usage: node ${process.argv[1]} <config.json>`)
@@ -123,6 +137,12 @@ async function main() {
         printAgentEvent
     )
     await runChatCli(agent, config)
+
+    console.log('====================')
+    const cacheHitRate = totalCachedTokens / totalInputTokens
+    console.log(
+        `input = ${totalInputTokens}, output = ${totalOutputTokens}, cache hit = ${asPercent(cacheHitRate)}`
+    )
 }
 
 void main().catch((error: unknown) => {

@@ -5,6 +5,7 @@ import {
     Config,
     Message,
     Provider,
+    TokenUsage,
     ToolCall,
     ToolMessage,
     ToolSpec,
@@ -53,6 +54,7 @@ export type AgentEvent =
           turnId: string
           iteration: number
           message: AssistantMessage
+          tokenUsage?: TokenUsage
       }
 
 export type EventHandler = (event: AgentEvent) => void
@@ -106,7 +108,7 @@ export class Agent {
 
             this.emitEvent({ kind: 'subturn-start', turnId, iteration })
 
-            const { message } = await this.config.provider.generate(
+            const { message, tokenUsage } = await this.config.provider.generate(
                 this.history,
                 this.config.modelConfig,
                 this.toolSpecs
@@ -119,6 +121,7 @@ export class Agent {
                 turnId,
                 iteration,
                 message,
+                tokenUsage,
             })
 
             if (message.toolCalls === undefined) {

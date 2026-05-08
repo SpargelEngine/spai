@@ -6,6 +6,7 @@ import {
     Message,
     Provider,
     Response,
+    TokenUsage,
     ToolCall,
     ToolSpec,
 } from '@spai/core'
@@ -211,7 +212,22 @@ export class ChatCompletionsProvider implements Provider {
         const message = json.choices[0].message
         const assistantMessage = fromChatCompletions(message)
 
+        let usage: TokenUsage | undefined = undefined
+        if (json.usage !== undefined) {
+            usage = {
+                inputTokens: json.usage.prompt_tokens ?? 0,
+                outputTokens: json.usage.completion_tokens ?? 0,
+                cachedTokens: json.usage.prompt_cache_hit_tokens ?? 0,
+                reasoningTokens:
+                    json.usage.completion_tokens_details.reasoning_tokens ?? 0,
+            }
+        }
+
         // TODO(tianjiao): Fill in real finish reason.
-        return { message: assistantMessage, finishReason: 'stop' }
+        return {
+            message: assistantMessage,
+            finishReason: 'stop',
+            tokenUsage: usage,
+        }
     }
 }
