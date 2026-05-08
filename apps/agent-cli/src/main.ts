@@ -135,7 +135,7 @@ async function main() {
         [
             {
                 role: 'system',
-                content: `You are a helpful assistant.\nCurrent working directory: ${process.cwd()}`,
+                content: `You are a helpful assistant.\nCurrent working directory: ${process.cwd()}\n\nWhen making git commits, add spai-agent <spai@local> as a co-author by including the following trailer in the commit message:\n\nCo-authored-by: spai-agent <spai@local>`,
             },
         ],
         printAgentEvent

@@ -82,7 +82,6 @@ export class Agent {
         private history: Message[],
         private eventHandler: EventHandler
     ) {
-        this.history = []
         this.toolSpecs = []
         this.nameToTool = new Map()
         for (const tool of this.tools) {
