@@ -2,7 +2,13 @@ import fs from 'node:fs'
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
-import { Agent, AgentEvent, ReadFileTool } from '@spai/agent'
+import {
+    Agent,
+    AgentEvent,
+    BashTool,
+    EditFileTool,
+    ReadFileTool,
+} from '@spai/agent'
 import { Config, Provider } from '@spai/core'
 import { ChatCompletionsProvider } from '@spai/provider'
 
@@ -126,14 +132,18 @@ async function main() {
         model: cliConfig.model,
         thinking: cliConfig.thinking,
     }
-    const readFileTool = new ReadFileTool()
     const agent = new Agent(
         {
             provider,
             modelConfig: config,
         },
-        [readFileTool],
-        [{ role: 'system', content: 'You are a helpful assistant.' }],
+        [new ReadFileTool(), new BashTool(), new EditFileTool()],
+        [
+            {
+                role: 'system',
+                content: `You are a helpful assistant.\nCurrent working directory: ${process.cwd()}`,
+            },
+        ],
         printAgentEvent
     )
     await runChatCli(agent, config)
