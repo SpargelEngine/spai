@@ -6,6 +6,9 @@ export const cliConfigSchema = z.object({
     model: z.string(),
     thinking: z.boolean().optional(),
 
+    systemPrompt: z.string().optional(),
+    systemPromptFile: z.string().optional(),
+
     provider: z.discriminatedUnion('type', [
         z.object({
             type: z.literal('chat-completions'),

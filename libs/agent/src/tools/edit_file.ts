@@ -8,7 +8,7 @@ export class EditFileTool implements Tool {
         path: z
             .string()
             .describe(
-                'Absolute path to the file to edit, e.g. `/repo/file.py`.'
+                'Absolute path to the file to edit, e.g. `/path/to/file.py`.'
             ),
         old_str: z
             .string()

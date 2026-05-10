@@ -36,9 +36,7 @@ function printAgentEvent(event: AgentEvent) {
     }
     message.toolCalls?.forEach((toolCall) => {
         console.log(
-            DIM +
-                `[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n` +
-                RESET
+            `${DIM}[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n${RESET}`
         )
     })
 
@@ -122,6 +120,15 @@ async function main() {
         }
     })()
 
+    let systemPrompt = ''
+    if (cliConfig.systemPromptFile) {
+        systemPrompt = fs.readFileSync(cliConfig.systemPromptFile, 'utf8')
+    } else if (cliConfig.systemPrompt) {
+        systemPrompt = cliConfig.systemPrompt
+    } else {
+        systemPrompt = `You are a helpful assistant.\nCurrent working directory: ${process.cwd()}\n\nWhen making git commits, add spai-agent <spai@local> as a co-author by including the following trailer in the commit message:\n\nCo-authored-by: spai-agent <spai@local>`
+    }
+
     const config: Config = {
         model: cliConfig.model,
         thinking: cliConfig.thinking,
@@ -135,7 +142,7 @@ async function main() {
         [
             {
                 role: 'system',
-                content: `You are a helpful assistant.\nCurrent working directory: ${process.cwd()}\n\nWhen making git commits, add spai-agent <spai@local> as a co-author by including the following trailer in the commit message:\n\nCo-authored-by: spai-agent <spai@local>`,
+                content: systemPrompt,
             },
         ],
         printAgentEvent
