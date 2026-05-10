@@ -8,8 +8,10 @@ Run `pnpm format-check` and `pnpm lint` at project directory root to check forma
 For further usages, see `package.json`.
 
 ## Language
+
 Use English for coding, comments and git commit messages.
-The language for reasoning and interacting with user is not limited. You can just use the language that user had used.
+The language for reasoning and interacting with user is not limited.
+You can just use the language that user uses for better communication.
 
 ## Git Commit
 

@@ -51,6 +51,7 @@ export class BashTool implements Tool {
                 cwd: process.cwd(),
                 // TODO(tianjiao): Make this configurable as well.
                 env: process.env,
+                stdio: ['ignore', 'pipe', 'pipe'],
             })
 
             const collectOutput = (
