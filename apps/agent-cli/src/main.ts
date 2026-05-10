@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import path from 'node:path'
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
@@ -148,7 +149,19 @@ async function main() {
     } else if (cliConfig.systemPrompt) {
         systemPrompt = cliConfig.systemPrompt
     } else {
-        systemPrompt = `You are a helpful assistant.\nCurrent working directory: ${process.cwd()}\n\nWhen making git commits, add spai-agent <spai@local> as a co-author by including the following trailer in the commit message:\n\nCo-authored-by: spai-agent <spai@local>`
+        systemPrompt = `You are a helpful assistant.\nCurrent working directory: ${process.cwd()}`
+    }
+
+    // Detect AGENTS.md in the current working directory and append to system prompt if present
+    const agentsMdPath = path.join(process.cwd(), 'AGENTS.md')
+    if (fs.existsSync(agentsMdPath)) {
+        const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf8')
+        if (systemPrompt) {
+            systemPrompt += '\n\n' + agentsMdContent
+        } else {
+            systemPrompt = agentsMdContent
+        }
+        console.log(`[info] Loaded AGENTS.md as system prompt supplement`)
     }
 
     const config: Config = {
