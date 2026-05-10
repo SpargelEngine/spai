@@ -38,12 +38,24 @@ function printAgentEvent(
     if (message.content !== undefined && message.content !== '') {
         console.log(`[assistant]\n${message.content}\n`)
     }
-    if (showToolCalls) {
-        message.toolCalls?.forEach((toolCall) => {
-            console.log(
-                `${DIM}[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n${RESET}`
-            )
-        })
+    if (message.toolCalls && message.toolCalls.length > 0) {
+        if (showToolCalls) {
+            message.toolCalls.forEach((toolCall) => {
+                console.log(
+                    `${DIM}[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n${RESET}`
+                )
+            })
+        } else {
+            const counts = new Map<string, number>()
+            for (const toolCall of message.toolCalls) {
+                counts.set(toolCall.name, (counts.get(toolCall.name) ?? 0) + 1)
+            }
+            const parts: string[] = []
+            for (const [name, count] of counts) {
+                parts.push(`${name} (${count})`)
+            }
+            console.log(`[tool-call] ${parts.join(', ')}`)
+        }
     }
 
     if (event.tokenUsage !== undefined) {
