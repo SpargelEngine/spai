@@ -14,9 +14,6 @@ function printWelcome() {
     console.log('hint: Type a message and press enter. Type ":q" to quit.\n')
 }
 
-const DIM = '\x1b[2m'
-const RESET = '\x1b[0m'
-
 let totalInputTokens = 0
 let totalOutputTokens = 0
 let totalCachedTokens = 0
@@ -33,7 +30,7 @@ function printAgentEvent(
     const { message } = event
 
     if (message.reasoning !== undefined && showReasoning) {
-        console.log(DIM + `[reasoning]\n${message.reasoning}\n` + RESET)
+        console.log(`[reasoning]\n${message.reasoning}\n`)
     }
     if (message.content !== undefined && message.content !== '') {
         console.log(`[assistant]\n${message.content}\n`)
@@ -42,7 +39,7 @@ function printAgentEvent(
         if (showToolCalls) {
             message.toolCalls.forEach((toolCall) => {
                 console.log(
-                    `${DIM}[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n${RESET}`
+                    `[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n`
                 )
             })
         } else {
