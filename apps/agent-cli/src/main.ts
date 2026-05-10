@@ -51,7 +51,7 @@ function printAgentEvent(
             for (const [name, count] of counts) {
                 parts.push(`${name} (${count})`)
             }
-            console.log(`[tool-call] ${parts.join(', ')}`)
+            console.log(`[tool-call] ${parts.join(', ')}\n`)
         }
     }
 
