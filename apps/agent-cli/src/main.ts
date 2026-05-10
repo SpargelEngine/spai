@@ -144,23 +144,12 @@ async function main() {
     }
 
     let systemPrompt = ''
-    if (cliConfig.systemPromptFile) {
-        systemPrompt = fs.readFileSync(cliConfig.systemPromptFile, 'utf8')
-    } else if (cliConfig.systemPrompt) {
-        systemPrompt = cliConfig.systemPrompt
-    } else {
-        systemPrompt = `You are a helpful assistant.\nCurrent working directory: ${process.cwd()}`
-    }
+    systemPrompt += `Current working directory: ${process.cwd()}`
 
-    // Detect AGENTS.md in the current working directory and append to system prompt if present
     const agentsMdPath = path.join(process.cwd(), 'AGENTS.md')
     if (fs.existsSync(agentsMdPath)) {
         const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf8')
-        if (systemPrompt) {
-            systemPrompt += '\n\n' + agentsMdContent
-        } else {
-            systemPrompt = agentsMdContent
-        }
+        systemPrompt += '\nAGENTS.md:\n' + agentsMdContent
         console.log(`[info] Loaded AGENTS.md as system prompt supplement`)
     }
 

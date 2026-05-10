@@ -18,9 +18,6 @@ export const cliConfigSchema = z.object({
     showReasoning: z.boolean().default(false),
     showToolCalls: z.boolean().default(false),
 
-    systemPrompt: z.string().optional(),
-    systemPromptFile: z.string().optional(),
-
     defaultProvider: z.string(),
     providers: z.record(z.string(), providerSchema),
 })
