@@ -21,7 +21,7 @@ let totalInputTokens = 0
 let totalOutputTokens = 0
 let totalCachedTokens = 0
 
-function printAgentEvent(event: AgentEvent, showReasoning: boolean) {
+function printAgentEvent(event: AgentEvent, showReasoning: boolean, showToolCalls: boolean) {
     if (event.kind !== 'model-finish') {
         return
     }
@@ -34,11 +34,13 @@ function printAgentEvent(event: AgentEvent, showReasoning: boolean) {
     if (message.content !== undefined) {
         console.log(`[assistant]\n${message.content}\n`)
     }
-    message.toolCalls?.forEach((toolCall) => {
-        console.log(
-            `${DIM}[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n${RESET}`
-        )
-    })
+    if (showToolCalls) {
+        message.toolCalls?.forEach((toolCall) => {
+            console.log(
+                `${DIM}[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n${RESET}`
+            )
+        })
+    }
 
     if (event.tokenUsage !== undefined) {
         totalInputTokens += event.tokenUsage.inputTokens
@@ -141,6 +143,7 @@ async function main() {
         thinking: cliConfig.thinking,
     }
     const showReasoning = cliConfig.showReasoning
+    const showToolCalls = cliConfig.showToolCalls
     const agent = new Agent(
         {
             provider,
@@ -153,7 +156,7 @@ async function main() {
                 content: systemPrompt,
             },
         ],
-        (event) => printAgentEvent(event, showReasoning)
+        (event) => printAgentEvent(event, showReasoning, showToolCalls)
     )
     await runChatCli(agent, config)
 
