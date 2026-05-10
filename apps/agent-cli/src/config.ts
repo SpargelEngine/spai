@@ -1,5 +1,14 @@
 import z from 'zod'
 
+const providerSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('chat-completions'),
+
+        subType: z.enum(['general', 'deepseek']).default('general'),
+        url: z.string(),
+    }),
+])
+
 export const cliConfigSchema = z.object({
     apiKey: z.string(),
 
@@ -9,14 +18,8 @@ export const cliConfigSchema = z.object({
     systemPrompt: z.string().optional(),
     systemPromptFile: z.string().optional(),
 
-    provider: z.discriminatedUnion('type', [
-        z.object({
-            type: z.literal('chat-completions'),
-
-            subType: z.enum(['general', 'deepseek']).default('general'),
-            url: z.string(),
-        }),
-    ]),
+    defaultProvider: z.string(),
+    providers: z.record(z.string(), providerSchema),
 })
 
 export type CLIConfig = z.infer<typeof cliConfigSchema>

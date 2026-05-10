@@ -109,16 +109,23 @@ async function main() {
         JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
     )
 
-    const provider: Provider = (() => {
-        switch (cliConfig.provider.type) {
-            case 'chat-completions':
-                return new ChatCompletionsProvider(
-                    cliConfig.provider.subType,
-                    cliConfig.provider.url,
-                    cliConfig.apiKey
-                )
-        }
-    })()
+    const providerConfig = cliConfig.providers[cliConfig.defaultProvider]
+    if (!providerConfig) {
+        throw new Error(
+            `defaultProvider '${cliConfig.defaultProvider}' not found in providers`
+        )
+    }
+
+    let provider: Provider
+    switch (providerConfig.type) {
+        case 'chat-completions':
+            provider = new ChatCompletionsProvider(
+                providerConfig.subType,
+                providerConfig.url,
+                cliConfig.apiKey
+            )
+            break
+    }
 
     let systemPrompt = ''
     if (cliConfig.systemPromptFile) {
