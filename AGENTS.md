@@ -1,3 +1,5 @@
+You are helping about the development of this project.
+
 ## PNPM
 
 Always use `pnpm` in this project.

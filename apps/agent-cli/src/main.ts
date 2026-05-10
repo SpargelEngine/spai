@@ -19,29 +19,49 @@ let totalInputTokens = 0
 let totalOutputTokens = 0
 let totalCachedTokens = 0
 
+const DIM = '\x1b[2m'
+const RESET = '\x1b[0m'
+
 function printAgentEvent(
     event: AgentEvent,
     showReasoning: boolean,
-    showToolCalls: boolean
+    showToolCalls: boolean,
+    color: boolean
 ) {
+    if (event.kind === 'subturn-start') {
+        console.log('----')
+        return
+    }
+
     if (event.kind !== 'model-finish') {
         return
     }
 
     const { message } = event
 
-    if (message.reasoning !== undefined && showReasoning) {
-        console.log(`[reasoning]\n${message.reasoning}\n`)
+    // Reasoning
+    if (message.reasoning !== undefined) {
+        if (color) process.stdout.write(DIM)
+        if (showReasoning) {
+            console.log(`[reasoning]\n${message.reasoning}\n`)
+        } else {
+            console.log(`[reasoning] (...) \n`)
+        }
+        if (color) process.stdout.write(RESET)
     }
+
+    // Assistant Message
     if (message.content !== undefined && message.content !== '') {
         console.log(`[assistant]\n${message.content}\n`)
     }
+
+    // Tool Calls
     if (message.toolCalls && message.toolCalls.length > 0) {
+        if (color) process.stdout.write(DIM)
         if (showToolCalls) {
+            console.log('[tool-call]')
             message.toolCalls.forEach((toolCall) => {
-                console.log(
-                    `[tool-call]\n ${toolCall.name}(${toolCall.arguments})\n`
-                )
+                console.log(`  ${toolCall.name}(${toolCall.arguments})\n`)
             })
         } else {
             const counts = new Map<string, number>()
@@ -54,6 +74,7 @@ function printAgentEvent(
             }
             console.log(`[tool-call] ${parts.join(', ')}\n`)
         }
+        if (color) process.stdout.write(RESET)
     }
 
     if (event.tokenUsage !== undefined) {
@@ -80,6 +101,8 @@ async function runChatCli(agent: Agent, config: Config) {
 
     try {
         while (true) {
+            console.log('========')
+
             const input = (await rl.question('[user] > ')).trim()
             console.log('')
 
@@ -159,6 +182,7 @@ async function main() {
     }
     const showReasoning = cliConfig.showReasoning
     const showToolCalls = cliConfig.showToolCalls
+    const color = cliConfig.color
     const agent = new Agent(
         {
             provider,
@@ -171,7 +195,7 @@ async function main() {
                 content: systemPrompt,
             },
         ],
-        (event) => printAgentEvent(event, showReasoning, showToolCalls)
+        (event) => printAgentEvent(event, showReasoning, showToolCalls, color)
     )
     await runChatCli(agent, config)
 

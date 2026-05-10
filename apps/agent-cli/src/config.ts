@@ -18,6 +18,8 @@ export const cliConfigSchema = z.object({
     showReasoning: z.boolean().default(false),
     showToolCalls: z.boolean().default(false),
 
+    color: z.boolean().default(true),
+
     defaultProvider: z.string(),
     providers: z.record(z.string(), providerSchema),
 })
