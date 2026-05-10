@@ -21,7 +21,11 @@ let totalInputTokens = 0
 let totalOutputTokens = 0
 let totalCachedTokens = 0
 
-function printAgentEvent(event: AgentEvent, showReasoning: boolean, showToolCalls: boolean) {
+function printAgentEvent(
+    event: AgentEvent,
+    showReasoning: boolean,
+    showToolCalls: boolean
+) {
     if (event.kind !== 'model-finish') {
         return
     }
@@ -31,7 +35,7 @@ function printAgentEvent(event: AgentEvent, showReasoning: boolean, showToolCall
     if (message.reasoning !== undefined && showReasoning) {
         console.log(DIM + `[reasoning]\n${message.reasoning}\n` + RESET)
     }
-    if (message.content !== undefined) {
+    if (message.content !== undefined && message.content !== '') {
         console.log(`[assistant]\n${message.content}\n`)
     }
     if (showToolCalls) {
