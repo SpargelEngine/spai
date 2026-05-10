@@ -15,6 +15,8 @@ export const cliConfigSchema = z.object({
     model: z.string(),
     thinking: z.boolean().optional(),
 
+    showReasoning: z.boolean().default(false),
+
     systemPrompt: z.string().optional(),
     systemPromptFile: z.string().optional(),
 

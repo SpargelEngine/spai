@@ -21,14 +21,14 @@ let totalInputTokens = 0
 let totalOutputTokens = 0
 let totalCachedTokens = 0
 
-function printAgentEvent(event: AgentEvent) {
+function printAgentEvent(event: AgentEvent, showReasoning: boolean) {
     if (event.kind !== 'model-finish') {
         return
     }
 
     const { message } = event
 
-    if (message.reasoning !== undefined) {
+    if (message.reasoning !== undefined && showReasoning) {
         console.log(DIM + `[reasoning]\n${message.reasoning}\n` + RESET)
     }
     if (message.content !== undefined) {
@@ -140,6 +140,7 @@ async function main() {
         model: cliConfig.model,
         thinking: cliConfig.thinking,
     }
+    const showReasoning = cliConfig.showReasoning
     const agent = new Agent(
         {
             provider,
@@ -152,7 +153,7 @@ async function main() {
                 content: systemPrompt,
             },
         ],
-        printAgentEvent
+        (event) => printAgentEvent(event, showReasoning)
     )
     await runChatCli(agent, config)
 
