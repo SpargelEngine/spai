@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import readline from 'node:readline/promises'
@@ -138,14 +139,25 @@ function asPercent(num: number) {
 }
 
 async function main() {
-    if (process.argv.length <= 2) {
-        console.log(`Usage: node ${process.argv[1]} <config.json>`)
+    let configPath: string
+
+    if (process.argv.length > 2) {
+        configPath = process.argv[2]
+    } else {
+        configPath = path.join(os.homedir(), '.config', 'spai', 'config.json')
+    }
+
+    if (!fs.existsSync(configPath)) {
+        console.error(
+            `Config file not found: ${configPath}\n` +
+                `Pass a config file as argument or place it at ~/.config/spai/config.json`
+        )
         process.exitCode = 1
         return
     }
 
     const cliConfig = cliConfigSchema.parse(
-        JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+        JSON.parse(fs.readFileSync(configPath, 'utf8'))
     )
 
     const providerConfig = cliConfig.providers[cliConfig.defaultProvider]
