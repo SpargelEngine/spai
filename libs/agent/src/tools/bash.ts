@@ -27,7 +27,8 @@ export class BashTool implements Tool {
     getSpec(): ToolSpec {
         return {
             name: 'bash',
-            description: 'Execute a bash command and return its output.',
+            description:
+                'Execute a bash command and return its output. Do NOT run commands that may hang indefinitely or require interactive input. If a command might hang or even have a risk of hanging, use `timeout` (e.g., `timeout 10 <command>`) to set a reasonable timeout.',
             schema: this.schema.toJSONSchema(),
         }
     }

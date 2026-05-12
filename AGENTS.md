@@ -22,8 +22,3 @@ When making git commits, add spai-agent <spai@local> as a co-author by including
 ```
 Co-authored-by: spai-agent <spai@local>
 ```
-
-## User AGENTS.md
-
-If there are other files at the root of the project directory with names that match `*AGENTS*.md`,
-they are user-specific instructions. Also read them.
