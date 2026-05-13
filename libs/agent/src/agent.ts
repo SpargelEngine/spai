@@ -5,6 +5,7 @@ import {
     Config,
     Message,
     Provider,
+    Session,
     TokenUsage,
     ToolCall,
     ToolMessage,
@@ -79,7 +80,7 @@ export class Agent {
     constructor(
         private readonly config: AgentConfig,
         private readonly tools: Tool[],
-        private history: Message[],
+        private readonly session: Session,
         private eventHandler: EventHandler
     ) {
         this.toolSpecs = []
@@ -96,7 +97,7 @@ export class Agent {
     async runTurn(prompt: string) {
         const turnId = crypto.randomUUID()
 
-        this.history.push({ role: 'user', content: prompt })
+        this.session.add({ role: 'user', content: prompt })
 
         this.emitEvent({ kind: 'turn-start', turnId, prompt })
 
@@ -108,12 +109,12 @@ export class Agent {
             this.emitEvent({ kind: 'subturn-start', turnId, iteration })
 
             const { message, tokenUsage } = await this.config.provider.generate(
-                this.history,
+                [...this.session.getMessages()],
                 this.config.modelConfig,
                 this.toolSpecs
             )
 
-            this.history.push(message)
+            this.session.add(message)
 
             this.emitEvent({
                 kind: 'model-finish',
@@ -139,12 +140,14 @@ export class Agent {
             const toolResultMessages = await this.runToolBatch(
                 message.toolCalls
             )
-            this.history.push(...toolResultMessages)
+            for (const m of toolResultMessages) {
+                this.session.add(m)
+            }
         }
     }
 
     getHistory(): readonly Message[] {
-        return this.history
+        return this.session.getMessages()
     }
 
     // TODO(tianjiao): Emit tool call events.

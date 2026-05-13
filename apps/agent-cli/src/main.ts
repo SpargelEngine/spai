@@ -5,7 +5,7 @@ import process from 'node:process'
 import readline from 'node:readline/promises'
 
 import { Agent, AgentEvent, BashTool, EditFileTool } from '@spai/agent'
-import { Config, Provider } from '@spai/core'
+import { Config, Provider, Session } from '@spai/core'
 import { ChatCompletionsProvider } from '@spai/provider'
 
 import { cliConfigSchema } from './config'
@@ -235,12 +235,12 @@ async function main() {
             modelConfig: config,
         },
         [new BashTool(), new EditFileTool()],
-        [
+        new Session([
             {
                 role: 'system',
                 content: systemPrompt,
             },
-        ],
+        ]),
         (event) => printAgentEvent(event, showReasoning, showToolCalls, color)
     )
     await runChatCli(agent, config)
