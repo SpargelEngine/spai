@@ -1,6 +1,7 @@
 import { Tool } from '../agent'
 import { ToolSpec } from '@spai/core'
 import fs from 'node:fs/promises'
+import pathModule from 'node:path'
 import z from 'zod'
 
 export class EditFileTool implements Tool {
@@ -30,17 +31,24 @@ export class EditFileTool implements Tool {
         }
     }
     async execute(params: unknown): Promise<string> {
-        const { path, old_str, new_str } = this.schema.parse(params)
+        const { path: filePath, old_str, new_str } = this.schema.parse(params)
 
         if (old_str === undefined) {
             // Overwrite mode: old_str is not provided.
             // Write the entire file with new_str (creates if not exists, overwrites if exists).
             try {
-                await fs.writeFile(path, new_str, 'utf8')
+                // Ensure parent directory exists before writing
+                const dir = pathModule.dirname(filePath)
+                if (dir) {
+                    await fs.mkdir(dir, { recursive: true })
+                }
+                await fs.writeFile(filePath, new_str, 'utf8')
                 return 'Done.'
             } catch (err) {
+                const message =
+                    err instanceof Error ? err.message : String(err)
                 console.log(err)
-                return JSON.stringify(err)
+                return `ERROR: ${message}`
             }
         }
 
@@ -49,19 +57,21 @@ export class EditFileTool implements Tool {
         }
 
         try {
-            const data = await fs.readFile(path, 'utf8')
+            const data = await fs.readFile(filePath, 'utf8')
             const occurrenceCount = data.split(old_str).length - 1
 
             if (occurrenceCount !== 1) {
                 return `ERROR: old_str occurs ${occurrenceCount} times in file; expected exactly once`
             }
 
-            await fs.writeFile(path, data.replace(old_str, new_str), 'utf8')
+            await fs.writeFile(filePath, data.replace(old_str, new_str), 'utf8')
 
             return 'Done.'
         } catch (err) {
+            const message =
+                err instanceof Error ? err.message : String(err)
             console.log(err)
-            return JSON.stringify(err)
+            return `ERROR: ${message}`
         }
     }
 }
