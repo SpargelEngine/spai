@@ -22,3 +22,5 @@ When making git commits, add spai-agent <spai@local> as a co-author by including
 ```
 Co-authored-by: spai-agent <spai@local>
 ```
+
+Do not commit unless asked by the user.
