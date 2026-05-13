@@ -138,6 +138,48 @@ function asPercent(num: number) {
     return (num * 100).toFixed(1) + '%'
 }
 
+function assembleSystemPrompt(): string {
+    let prompt = ''
+
+    const globalAgentsMdPath = path.join(
+        os.homedir(),
+        '.config',
+        'spai',
+        'AGENTS.md'
+    )
+    if (fs.existsSync(globalAgentsMdPath)) {
+        const globalAgentsMdContent = fs.readFileSync(
+            globalAgentsMdPath,
+            'utf8'
+        )
+        prompt += globalAgentsMdContent + '\n'
+        console.log(
+            `[info] Loaded ~/.config/spai/AGENTS.md as system prompt supplement`
+        )
+    }
+
+    const agentsMdPath = path.join(process.cwd(), 'AGENTS.md')
+    if (fs.existsSync(agentsMdPath)) {
+        const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf8')
+        prompt += '\nAGENTS.md:\n' + agentsMdContent
+        console.log(`[info] Loaded AGENTS.md as system prompt supplement`)
+    }
+
+    const localAgentsMdPath = path.join(process.cwd(), 'AGENTS.local.md')
+    if (fs.existsSync(localAgentsMdPath)) {
+        const localAgentsMdContent = fs.readFileSync(localAgentsMdPath, 'utf8')
+        prompt += '\nAGENTS.local.md:\n' + localAgentsMdContent
+        console.log(`[info] Loaded AGENTS.local.md as system prompt supplement`)
+    }
+
+    // Inject dynamic context after AGENTS.md contents
+    prompt += `\nCurrent working directory: ${process.cwd()}`
+    prompt += `\nCurrent date/time: ${new Date().toISOString()}`
+    prompt += `\nSystem: ${os.hostname()} / ${os.platform()} ${os.release()} (${os.arch()})`
+
+    return prompt
+}
+
 async function main() {
     let configPath: string
 
@@ -178,44 +220,7 @@ async function main() {
             break
     }
 
-    // Load AGENTS.md files in order: global config, project, local overrides
-    let systemPrompt = ''
-
-    const globalAgentsMdPath = path.join(
-        os.homedir(),
-        '.config',
-        'spai',
-        'AGENTS.md'
-    )
-    if (fs.existsSync(globalAgentsMdPath)) {
-        const globalAgentsMdContent = fs.readFileSync(
-            globalAgentsMdPath,
-            'utf8'
-        )
-        systemPrompt += globalAgentsMdContent + '\n'
-        console.log(
-            `[info] Loaded ~/.config/spai/AGENTS.md as system prompt supplement`
-        )
-    }
-
-    const agentsMdPath = path.join(process.cwd(), 'AGENTS.md')
-    if (fs.existsSync(agentsMdPath)) {
-        const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf8')
-        systemPrompt += '\nAGENTS.md:\n' + agentsMdContent
-        console.log(`[info] Loaded AGENTS.md as system prompt supplement`)
-    }
-
-    const localAgentsMdPath = path.join(process.cwd(), 'AGENTS.local.md')
-    if (fs.existsSync(localAgentsMdPath)) {
-        const localAgentsMdContent = fs.readFileSync(localAgentsMdPath, 'utf8')
-        systemPrompt += '\nAGENTS.local.md:\n' + localAgentsMdContent
-        console.log(`[info] Loaded AGENTS.local.md as system prompt supplement`)
-    }
-
-    // Inject dynamic context after AGENTS.md contents
-    systemPrompt += `\nCurrent working directory: ${process.cwd()}`
-    systemPrompt += `\nCurrent date/time: ${new Date().toISOString()}`
-    systemPrompt += `\nSystem: ${os.hostname()} / ${os.platform()} ${os.release()} (${os.arch()})`
+    const systemPrompt = assembleSystemPrompt()
 
     const config: Config = {
         model: cliConfig.model,
