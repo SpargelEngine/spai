@@ -40,7 +40,7 @@ const d = debug('spai:agent')
  */
 export interface Tool {
     getSpec(): ToolSpec
-    execute(params: unknown): Promise<string>
+    execute(params: unknown, signal?: AbortSignal): Promise<string>
 }
 
 export type AgentEvent =
@@ -101,7 +101,7 @@ export class Agent extends EventEmitter<AgentEventMap> {
 
     // One turn means user gives a prompt, and the agent works until a final
     // `content` is presented to the user.
-    async runTurn(prompt: string) {
+    async runTurn(prompt: string, signal?: AbortSignal) {
         const turnId = crypto.randomUUID()
 
         this.session.add({ role: 'user', content: prompt })
@@ -123,11 +123,27 @@ export class Agent extends EventEmitter<AgentEventMap> {
             d(subturnEvent)
             this.emit('subturn-start', subturnEvent)
 
-            const { message, tokenUsage } = await this.config.provider.generate(
-                [...this.session.getMessages()],
-                this.config.modelConfig,
-                this.toolSpecs
-            )
+            let message: AssistantMessage
+            let tokenUsage: TokenUsage | undefined
+
+            try {
+                const result = await this.config.provider.generate(
+                    [...this.session.getMessages()],
+                    this.config.modelConfig,
+                    this.toolSpecs,
+                    signal
+                )
+                message = result.message
+                tokenUsage = result.tokenUsage
+            } catch (err: unknown) {
+                if (err instanceof Error && err.name === 'AbortError') {
+                    // Interrupted while waiting for server response.
+                    // The assistant message was not added to session; the user's
+                    // prompt remains in history. Just return to user input mode.
+                    return
+                }
+                throw err
+            }
 
             this.session.add(message)
 
@@ -154,7 +170,11 @@ export class Agent extends EventEmitter<AgentEventMap> {
                 return
             }
 
-            for (const m of await this.runToolBatch(message.toolCalls)) {
+            const toolResultMessages = await this.runToolBatch(
+                message.toolCalls,
+                signal
+            )
+            for (const m of toolResultMessages) {
                 this.session.add(m)
             }
         }
@@ -166,17 +186,38 @@ export class Agent extends EventEmitter<AgentEventMap> {
 
     // TODO(tianjiao): Emit tool call events.
     private async runToolBatch(
-        toolCallMessages: ToolCall[]
+        toolCallMessages: ToolCall[],
+        signal?: AbortSignal
     ): Promise<ToolMessage[]> {
         const resultMessages: ToolMessage[] = []
         for (const toolCall of toolCallMessages) {
-            const result = await this.handleToolCall(toolCall)
+            const result = await this.handleToolCall(toolCall, signal)
             resultMessages.push(result)
+
+            // After handling each tool call, check if we were interrupted.
+            // If so, mark remaining tool calls as interrupted and stop.
+            if (signal?.aborted) {
+                const remainingToolCalls = toolCallMessages.slice(
+                    resultMessages.length
+                )
+                for (const remaining of remainingToolCalls) {
+                    resultMessages.push(
+                        createToolResult(
+                            remaining.id,
+                            'Tool execution was interrupted by user. This tool call was not executed.'
+                        )
+                    )
+                }
+                break
+            }
         }
         return resultMessages
     }
 
-    async handleToolCall(toolCall: ToolCall): Promise<ToolMessage> {
+    async handleToolCall(
+        toolCall: ToolCall,
+        signal?: AbortSignal
+    ): Promise<ToolMessage> {
         const tool = this.nameToTool.get(toolCall.name)
 
         if (tool === undefined) {
@@ -204,8 +245,15 @@ export class Agent extends EventEmitter<AgentEventMap> {
         }
 
         try {
-            return createToolResult(toolCall.id, await tool.execute(params))
+            const content = await tool.execute(params, signal)
+            return createToolResult(toolCall.id, content)
         } catch (_error) {
+            if (signal?.aborted) {
+                return createToolResult(
+                    toolCall.id,
+                    'Tool execution was interrupted by user. Partial output may have been produced.'
+                )
+            }
             return createToolResult(
                 toolCall.id,
                 `error: unknown error executing tool`

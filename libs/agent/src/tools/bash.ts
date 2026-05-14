@@ -33,7 +33,7 @@ export class BashTool implements Tool {
         }
     }
 
-    async execute(params: unknown): Promise<string> {
+    async execute(params: unknown, signal?: AbortSignal): Promise<string> {
         const { command } = this.schema.parse(params)
 
         const outputPath = path.join(
@@ -53,6 +53,21 @@ export class BashTool implements Tool {
                 env: process.env,
                 stdio: ['ignore', 'pipe', 'pipe'],
             })
+
+            // If aborted, kill the child process so we return partial output
+            if (signal) {
+                if (signal.aborted) {
+                    child.kill('SIGTERM')
+                } else {
+                    signal.addEventListener(
+                        'abort',
+                        () => {
+                            child.kill('SIGTERM')
+                        },
+                        { once: true }
+                    )
+                }
+            }
 
             const collectOutput = (
                 chunk: Buffer,
@@ -77,7 +92,7 @@ export class BashTool implements Tool {
                 collectOutput(chunk, child.stderr)
             })
 
-            const { code, signal } = await new Promise<{
+            const { code, signal: childSignal } = await new Promise<{
                 code: number | null
                 signal: NodeJS.Signals | null
             }>((resolve, reject) => {
@@ -88,7 +103,7 @@ export class BashTool implements Tool {
             outputStream.end()
             await finished(outputStream)
 
-            const exitStatus = formatExitStatus(code, signal)
+            const exitStatus = formatExitStatus(code, childSignal)
 
             if (outputBytes > MAX_INLINE_OUTPUT_BYTES) {
                 return `${exitStatus}\nOutput (${outputBytes} bytes) exceeded ${MAX_INLINE_OUTPUT_BYTES} bytes and was written to ${outputPath}`

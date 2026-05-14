@@ -176,7 +176,8 @@ export class ChatCompletionsProvider implements Provider {
     async generate(
         messages: Message[],
         config: Config,
-        tools?: ToolSpec[]
+        tools?: ToolSpec[],
+        signal?: AbortSignal
     ): Promise<Response> {
         const request = toChatCompletions(messages, config, tools)
         this.processRequest(request, config)
@@ -191,6 +192,7 @@ export class ChatCompletionsProvider implements Provider {
                 Authorization: `Bearer ${this.apiKey}`,
             },
             body: JSON.stringify(request),
+            signal,
         })
         if (response.status !== 200) {
             debugGen(response)
