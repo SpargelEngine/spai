@@ -61,6 +61,7 @@ export interface Provider {
     generate(
         messages: Message[],
         config: Config,
-        tools?: ToolSpec[]
+        tools?: ToolSpec[],
+        signal?: AbortSignal
     ): Promise<Response>
 }

@@ -85,6 +85,20 @@ function printAgentEvent(
     }
 }
 
+function createReadline() {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    })
+    // Track closed state since the TypeScript types don't expose the
+    // runtime `closed` property.
+    let closed = false
+    rl.on('close', () => {
+        closed = true
+    })
+    return { rl, isClosed: () => closed }
+}
+
 async function runChatCli(agent: Agent, config: Config) {
     let statusLine = `Model: ${config.model}`
     if (config.thinking) {
@@ -93,10 +107,7 @@ async function runChatCli(agent: Agent, config: Config) {
 
     console.log(statusLine)
 
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-    })
+    let { rl, isClosed } = createReadline()
 
     printWelcome()
 
@@ -104,7 +115,14 @@ async function runChatCli(agent: Agent, config: Config) {
         while (true) {
             console.log('========')
 
-            const input = (await rl.question('[user] > ')).trim()
+            let input: string
+            try {
+                input = (await rl.question('[user] > ')).trim()
+            } catch {
+                // Ctrl+C during input: exit the program
+                console.log()
+                break
+            }
             console.log('')
 
             if (input === '') {
@@ -127,10 +145,32 @@ async function runChatCli(agent: Agent, config: Config) {
                 continue
             }
 
-            await agent.runTurn(input)
+            const abortController = new AbortController()
+
+            // readline keeps the terminal in raw mode, so Ctrl+C is NOT
+            // delivered as SIGINT — it is delivered as a keypress byte 0x03.
+            // readline's internal handler detects this and closes the
+            // interface. We listen for the 'close' event to detect Ctrl+C
+            // during agent.runTurn and abort the operation.
+            const onClose = () => {
+                abortController.abort()
+                console.log('\n[interrupted]')
+            }
+            rl.on('close', onClose)
+
+            try {
+                await agent.runTurn(input, abortController.signal)
+            } finally {
+                rl.off('close', onClose)
+                if (isClosed()) {
+                    ;({ rl, isClosed } = createReadline())
+                }
+            }
         }
     } finally {
-        rl.close()
+        if (!isClosed()) {
+            rl.close()
+        }
     }
 }
 
