@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events'
+
 import debug from 'debug'
 
 import {
@@ -58,7 +60,12 @@ export type AgentEvent =
           tokenUsage?: TokenUsage
       }
 
-export type EventHandler = (event: AgentEvent) => void
+export interface AgentEventMap {
+    'turn-start': [event: AgentEvent & { kind: 'turn-start' }]
+    'subturn-start': [event: AgentEvent & { kind: 'subturn-start' }]
+    'model-finish': [event: AgentEvent & { kind: 'model-finish' }]
+    'turn-finish': [event: AgentEvent & { kind: 'turn-finish' }]
+}
 
 export interface AgentConfig {
     provider: Provider
@@ -72,7 +79,7 @@ function createToolResult(id: string, content: string): ToolMessage {
 // NOTE(tianjiao):
 // - When an agent is created, the set of tools must be frozen.
 //   Rationale: Changing tools will invalidate the entire prefix cache.
-export class Agent {
+export class Agent extends EventEmitter<AgentEventMap> {
     private readonly toolSpecs: ToolSpec[]
     private readonly nameToTool: Map<string, Tool>
 
@@ -80,9 +87,9 @@ export class Agent {
     constructor(
         private readonly config: AgentConfig,
         private readonly tools: Tool[],
-        private readonly session: Session,
-        private eventHandler: EventHandler
+        private readonly session: Session
     ) {
+        super()
         this.toolSpecs = []
         this.nameToTool = new Map()
         for (const tool of this.tools) {
@@ -99,14 +106,22 @@ export class Agent {
 
         this.session.add({ role: 'user', content: prompt })
 
-        this.emitEvent({ kind: 'turn-start', turnId, prompt })
+        const turnEvent = { kind: 'turn-start' as const, turnId, prompt }
+        d(turnEvent)
+        this.emit('turn-start', turnEvent)
 
         let iteration = 0
 
         while (true) {
             iteration += 1
 
-            this.emitEvent({ kind: 'subturn-start', turnId, iteration })
+            const subturnEvent = {
+                kind: 'subturn-start' as const,
+                turnId,
+                iteration,
+            }
+            d(subturnEvent)
+            this.emit('subturn-start', subturnEvent)
 
             const { message, tokenUsage } = await this.config.provider.generate(
                 [...this.session.getMessages()],
@@ -116,23 +131,27 @@ export class Agent {
 
             this.session.add(message)
 
-            this.emitEvent({
-                kind: 'model-finish',
+            const modelFinishEvent = {
+                kind: 'model-finish' as const,
                 turnId,
                 iteration,
                 message,
                 tokenUsage,
-            })
+            }
+            d(modelFinishEvent)
+            this.emit('model-finish', modelFinishEvent)
 
             if (message.toolCalls === undefined) {
                 const outputText = message.content ?? ''
                 // TODO(tianjiao): Handle thinking.
-                this.emitEvent({
-                    kind: 'turn-finish',
+                const turnFinishEvent = {
+                    kind: 'turn-finish' as const,
                     turnId,
                     iterations: iteration,
                     outputText,
-                })
+                }
+                d(turnFinishEvent)
+                this.emit('turn-finish', turnFinishEvent)
                 // TODO(tianjiao): Return `TurnResult`.
                 return
             }
@@ -198,10 +217,5 @@ export class Agent {
                 `error: unknown error executing tool`
             )
         }
-    }
-
-    private emitEvent(event: AgentEvent) {
-        d(event)
-        this.eventHandler(event)
     }
 }

@@ -4,8 +4,14 @@ import path from 'node:path'
 import process from 'node:process'
 import readline from 'node:readline/promises'
 
-import { Agent, AgentEvent, BashTool, EditFileTool } from '@spai/agent'
-import { Config, Provider, Session } from '@spai/core'
+import { Agent, BashTool, EditFileTool } from '@spai/agent'
+import {
+    AssistantMessage,
+    Config,
+    Provider,
+    Session,
+    TokenUsage,
+} from '@spai/core'
 import { ChatCompletionsProvider } from '@spai/provider'
 
 import { cliConfigSchema } from './config'
@@ -23,21 +29,26 @@ let totalCachedTokens = 0
 const DIM = '\x1b[2m'
 const RESET = '\x1b[0m'
 
-function printAgentEvent(
-    event: AgentEvent,
+function onSubturnStart(_event: {
+    kind: 'subturn-start'
+    turnId: string
+    iteration: number
+}) {
+    console.log('----')
+}
+
+function onModelFinish(
+    event: {
+        kind: 'model-finish'
+        turnId: string
+        iteration: number
+        message: AssistantMessage
+        tokenUsage?: TokenUsage
+    },
     showReasoning: boolean,
     showToolCalls: boolean,
     color: boolean
 ) {
-    if (event.kind === 'subturn-start') {
-        console.log('----')
-        return
-    }
-
-    if (event.kind !== 'model-finish') {
-        return
-    }
-
     const { message } = event
 
     // Reasoning
@@ -240,8 +251,11 @@ async function main() {
                 role: 'system',
                 content: systemPrompt,
             },
-        ]),
-        (event) => printAgentEvent(event, showReasoning, showToolCalls, color)
+        ])
+    )
+    agent.on('subturn-start', (event) => onSubturnStart(event))
+    agent.on('model-finish', (event) =>
+        onModelFinish(event, showReasoning, showToolCalls, color)
     )
     await runChatCli(agent, config)
 
