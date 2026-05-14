@@ -6,12 +6,9 @@ import {
     Message,
     Provider,
     Response,
-    TokenUsage,
     ToolCall,
     ToolSpec,
 } from '@spai/core'
-
-const d = debug('spai:provider:chat-completion')
 
 interface ChatCompletionsRequest {
     model: string
@@ -108,21 +105,19 @@ function toChatCompletions(
         }
     }
 
-    const chatCompletionsTools = tools?.map((toolSpec) => {
-        return {
-            type: 'function',
-            function: {
-                description: toolSpec.description,
-                name: toolSpec.name,
-                parameters: toolSpec.schema,
-            },
-        } as ChatCompletionsTool
-    })
-
     return {
         model: config.model,
         messages: chatCompletionsMessages,
-        tools: chatCompletionsTools,
+        tools: tools?.map(
+            (toolSpec): ChatCompletionsTool => ({
+                type: 'function',
+                function: {
+                    description: toolSpec.description,
+                    name: toolSpec.name,
+                    parameters: toolSpec.schema,
+                },
+            })
+        ),
     }
 }
 
@@ -152,7 +147,7 @@ function fromChatCompletions(
 
 export type ChatCompletionsProviderType = 'general' | 'deepseek'
 
-const debugGen = d.extend('generate')
+const debugGen = debug('spai:provider:chat-completion').extend('generate')
 
 export class ChatCompletionsProvider implements Provider {
     // TODO(tianjiao): Remove `providerType`.
@@ -189,13 +184,12 @@ export class ChatCompletionsProvider implements Provider {
         // Record the request sent to providers.
         debugGen(request)
 
-        const headers = new Headers({
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.apiKey}`,
-        })
         const response = await fetch(this.url, {
             method: 'POST',
-            headers: headers,
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${this.apiKey}`,
+            },
             body: JSON.stringify(request),
         })
         if (response.status !== 200) {
@@ -209,25 +203,21 @@ export class ChatCompletionsProvider implements Provider {
             throw Error('response must contain a nonempty choices array')
         }
 
-        const message = json.choices[0].message
-        const assistantMessage = fromChatCompletions(message)
-
-        let usage: TokenUsage | undefined = undefined
-        if (json.usage !== undefined) {
-            usage = {
-                inputTokens: json.usage.prompt_tokens ?? 0,
-                outputTokens: json.usage.completion_tokens ?? 0,
-                cachedTokens: json.usage.prompt_cache_hit_tokens ?? 0,
-                reasoningTokens:
-                    json.usage.completion_tokens_details.reasoning_tokens ?? 0,
-            }
-        }
-
         // TODO(tianjiao): Fill in real finish reason.
         return {
-            message: assistantMessage,
+            message: fromChatCompletions(json.choices[0].message),
             finishReason: 'stop',
-            tokenUsage: usage,
+            tokenUsage:
+                json.usage !== undefined
+                    ? {
+                          inputTokens: json.usage.prompt_tokens ?? 0,
+                          outputTokens: json.usage.completion_tokens ?? 0,
+                          cachedTokens: json.usage.prompt_cache_hit_tokens ?? 0,
+                          reasoningTokens:
+                              json.usage.completion_tokens_details
+                                  .reasoning_tokens ?? 0,
+                      }
+                    : undefined,
         }
     }
 }

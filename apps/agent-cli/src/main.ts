@@ -97,12 +97,7 @@ function onModelFinish(
 }
 
 async function runChatCli(agent: Agent, config: Config) {
-    let statusLine = `Model: ${config.model}`
-    if (config.thinking) {
-        statusLine += ' (thinking)'
-    }
-
-    console.log(statusLine)
+    console.log(`Model: ${config.model}${config.thinking ? ' (thinking)' : ''}`)
 
     const rl = readline.createInterface({
         input: process.stdin,
@@ -159,11 +154,7 @@ function assembleSystemPrompt(): string {
         'AGENTS.md'
     )
     if (fs.existsSync(globalAgentsMdPath)) {
-        const globalAgentsMdContent = fs.readFileSync(
-            globalAgentsMdPath,
-            'utf8'
-        )
-        prompt += globalAgentsMdContent + '\n'
+        prompt += fs.readFileSync(globalAgentsMdPath, 'utf8') + '\n'
         console.log(
             `[info] Loaded ~/.config/spai/AGENTS.md as system prompt supplement`
         )
@@ -171,15 +162,14 @@ function assembleSystemPrompt(): string {
 
     const agentsMdPath = path.join(process.cwd(), 'AGENTS.md')
     if (fs.existsSync(agentsMdPath)) {
-        const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf8')
-        prompt += '\nAGENTS.md:\n' + agentsMdContent
+        prompt += '\nAGENTS.md:\n' + fs.readFileSync(agentsMdPath, 'utf8')
         console.log(`[info] Loaded AGENTS.md as system prompt supplement`)
     }
 
     const localAgentsMdPath = path.join(process.cwd(), 'AGENTS.local.md')
     if (fs.existsSync(localAgentsMdPath)) {
-        const localAgentsMdContent = fs.readFileSync(localAgentsMdPath, 'utf8')
-        prompt += '\nAGENTS.local.md:\n' + localAgentsMdContent
+        prompt +=
+            '\nAGENTS.local.md:\n' + fs.readFileSync(localAgentsMdPath, 'utf8')
         console.log(`[info] Loaded AGENTS.local.md as system prompt supplement`)
     }
 
@@ -231,15 +221,10 @@ async function main() {
             break
     }
 
-    const systemPrompt = assembleSystemPrompt()
-
     const config: Config = {
         model: cliConfig.model,
         thinking: cliConfig.thinking,
     }
-    const showReasoning = cliConfig.showReasoning
-    const showToolCalls = cliConfig.showToolCalls
-    const color = cliConfig.color
     const agent = new Agent(
         {
             provider,
@@ -249,20 +234,24 @@ async function main() {
         new Session([
             {
                 role: 'system',
-                content: systemPrompt,
+                content: assembleSystemPrompt(),
             },
         ])
     )
     agent.on('subturn-start', (event) => onSubturnStart(event))
     agent.on('model-finish', (event) =>
-        onModelFinish(event, showReasoning, showToolCalls, color)
+        onModelFinish(
+            event,
+            cliConfig.showReasoning,
+            cliConfig.showToolCalls,
+            cliConfig.color
+        )
     )
     await runChatCli(agent, config)
 
     console.log('====================')
-    const cacheHitRate = totalCachedTokens / totalInputTokens
     console.log(
-        `input = ${totalInputTokens}, output = ${totalOutputTokens}, cache hit = ${asPercent(cacheHitRate)}`
+        `input = ${totalInputTokens}, output = ${totalOutputTokens}, cache hit = ${asPercent(totalCachedTokens / totalInputTokens)}`
     )
 }
 

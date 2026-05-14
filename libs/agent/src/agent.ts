@@ -142,13 +142,11 @@ export class Agent extends EventEmitter<AgentEventMap> {
             this.emit('model-finish', modelFinishEvent)
 
             if (message.toolCalls === undefined) {
-                const outputText = message.content ?? ''
-                // TODO(tianjiao): Handle thinking.
                 const turnFinishEvent = {
                     kind: 'turn-finish' as const,
                     turnId,
                     iterations: iteration,
-                    outputText,
+                    outputText: message.content ?? '',
                 }
                 d(turnFinishEvent)
                 this.emit('turn-finish', turnFinishEvent)
@@ -156,10 +154,7 @@ export class Agent extends EventEmitter<AgentEventMap> {
                 return
             }
 
-            const toolResultMessages = await this.runToolBatch(
-                message.toolCalls
-            )
-            for (const m of toolResultMessages) {
+            for (const m of await this.runToolBatch(message.toolCalls)) {
                 this.session.add(m)
             }
         }
@@ -209,8 +204,7 @@ export class Agent extends EventEmitter<AgentEventMap> {
         }
 
         try {
-            const content = await tool.execute(params)
-            return createToolResult(toolCall.id, content)
+            return createToolResult(toolCall.id, await tool.execute(params))
         } catch (_error) {
             return createToolResult(
                 toolCall.id,

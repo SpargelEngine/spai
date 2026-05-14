@@ -45,9 +45,8 @@ export class EditFileTool implements Tool {
                 await fs.writeFile(filePath, new_str, 'utf8')
                 return 'Done.'
             } catch (err) {
-                const message = err instanceof Error ? err.message : String(err)
                 console.log(err)
-                return `ERROR: ${message}`
+                return `ERROR: ${err instanceof Error ? err.message : String(err)}`
             }
         }
 
@@ -67,9 +66,8 @@ export class EditFileTool implements Tool {
 
             return 'Done.'
         } catch (err) {
-            const message = err instanceof Error ? err.message : String(err)
             console.log(err)
-            return `ERROR: ${message}`
+            return `ERROR: ${err instanceof Error ? err.message : String(err)}`
         }
     }
 }

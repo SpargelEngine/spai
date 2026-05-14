@@ -43,7 +43,6 @@ export class BashTool implements Tool {
 
         try {
             const outputStream = createWriteStream(outputPath, { flags: 'wx' })
-            const outputFinished = finished(outputStream)
             const inlineChunks: Buffer[] = []
             let outputBytes = 0
 
@@ -87,7 +86,7 @@ export class BashTool implements Tool {
             })
 
             outputStream.end()
-            await outputFinished
+            await finished(outputStream)
 
             const exitStatus = formatExitStatus(code, signal)
 
