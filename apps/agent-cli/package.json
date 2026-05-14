@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@spai/agent": "workspace:^",
@@ -21,9 +21,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/jest": "catalog:",
     "@types/node": "catalog:",
-    "jest": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
