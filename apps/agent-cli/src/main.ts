@@ -295,7 +295,7 @@ async function main() {
 
     console.log('====================')
     console.log(
-        `input = ${totalInputTokens}, output = ${totalOutputTokens}, cache hit = ${asPercent(totalCachedTokens / totalInputTokens)}`
+        `input = ${totalInputTokens}, output = ${totalOutputTokens}, cache hit = ${asPercent(totalInputTokens === 0 ? 0 : totalCachedTokens / totalInputTokens)}`
     )
 }
 
