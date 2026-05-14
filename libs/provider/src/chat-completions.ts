@@ -135,7 +135,6 @@ function fromChatCompletions(
         toolCalls: message.tool_calls?.map(
             (tool_call) =>
                 ({
-                    role: 'tool-call',
                     id: tool_call.id,
                     name: tool_call.function.name,
                     arguments: tool_call.function.arguments,
