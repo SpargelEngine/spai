@@ -153,13 +153,14 @@ function assembleSystemPrompt(): string {
         'spai',
         'AGENTS.md'
     )
+
+    prompt += '\n<instructions>'
     if (fs.existsSync(globalAgentsMdPath)) {
-        prompt += fs.readFileSync(globalAgentsMdPath, 'utf8') + '\n'
+        prompt += '\n' + fs.readFileSync(globalAgentsMdPath, 'utf8')
         console.log(
             `[info] Loaded ~/.config/spai/AGENTS.md as system prompt supplement`
         )
     }
-
     const agentsMdPath = path.join(process.cwd(), 'AGENTS.md')
     if (fs.existsSync(agentsMdPath)) {
         prompt += '\nAGENTS.md:\n' + fs.readFileSync(agentsMdPath, 'utf8')
@@ -172,11 +173,14 @@ function assembleSystemPrompt(): string {
             '\nAGENTS.local.md:\n' + fs.readFileSync(localAgentsMdPath, 'utf8')
         console.log(`[info] Loaded AGENTS.local.md as system prompt supplement`)
     }
+    prompt += '\n</instructions>'
 
     // Inject dynamic context after AGENTS.md contents
+    prompt += '\n<current-env>'
     prompt += `\nCurrent working directory: ${process.cwd()}`
     prompt += `\nCurrent date/time: ${new Date().toISOString()}`
     prompt += `\nSystem: ${os.hostname()} / ${os.platform()} ${os.release()} (${os.arch()})`
+    prompt += '\n</current-env>'
 
     return prompt
 }
