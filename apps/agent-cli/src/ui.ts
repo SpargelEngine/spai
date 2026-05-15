@@ -349,13 +349,24 @@ export class UI {
     private getInputRows(width: number): string[] {
         if (this.inputText.length === 0) return ['']
 
-        const rows: string[] = []
-        for (let start = 0; start < this.inputText.length; start += width) {
-            rows.push(this.inputText.slice(start, start + width))
+        const rows: string[] = ['']
+        let rowWidth = 0
+
+        for (const ch of this.inputText) {
+            const chWidth = this.charDisplayWidth(ch)
+            if (rowWidth + chWidth > width && rowWidth > 0) {
+                rows.push('')
+                rowWidth = 0
+            }
+            rows[rows.length - 1] += ch
+            rowWidth += chWidth
         }
-        if (this.inputText.length % width === 0) {
+
+        // If the last row is exactly full, add an empty row for the cursor
+        if (rowWidth === width && this.inputText.length > 0) {
             rows.push('')
         }
+
         return rows
     }
 
@@ -363,10 +374,58 @@ export class UI {
         row: number
         col: number
     } {
-        return {
-            row: Math.floor(this.inputCursor / width),
-            col: this.inputCursor % width,
+        let row = 0
+        let col = 0
+        let charCount = 0
+
+        for (const ch of this.inputText) {
+            if (charCount >= this.inputCursor) break
+            charCount++
+
+            const chWidth = this.charDisplayWidth(ch)
+            if (col + chWidth > width && col > 0) {
+                row++
+                col = 0
+            }
+            col += chWidth
         }
+
+        return { row, col }
+    }
+
+    /**
+     * Returns the terminal display width of a character.
+     * CJK, fullwidth, and certain wide symbols occupy 2 columns;
+     * most other characters occupy 1 column; control chars occupy 0.
+     */
+    private charDisplayWidth(ch: string): number {
+        const code = ch.codePointAt(0)!
+        // Zero-width and control characters
+        if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) {
+            return 0
+        }
+        // Wide East Asian characters (CJK, Hangul, fullwidth, etc.)
+        if (
+            (code >= 0x1100 && code <= 0x115f) || // Hangul Jamo
+            code === 0x2329 ||
+            code === 0x232a || // Angle brackets
+            (code >= 0x2e80 && code <= 0x303e) || // CJK Radicals, Kangxi
+            (code >= 0x3040 && code <= 0x33bf) || // Hiragana, Katakana, Bopomofo, etc.
+            (code >= 0x3400 && code <= 0x4dbf) || // CJK Ext A
+            (code >= 0x4e00 && code <= 0xa4cf) || // CJK Unified, Yi
+            (code >= 0xac00 && code <= 0xd7a3) || // Hangul Syllables
+            (code >= 0xf900 && code <= 0xfaff) || // CJK Compat
+            (code >= 0xfe10 && code <= 0xfe19) || // Vertical forms
+            (code >= 0xfe30 && code <= 0xfe6f) || // CJK Compat Forms
+            (code >= 0xff01 && code <= 0xff60) || // Fullwidth Forms
+            (code >= 0xffe0 && code <= 0xffe6) || // Fullwidth Signs
+            (code >= 0x1f300 && code <= 0x1f64f) || // Misc Symbols / Emoticons
+            (code >= 0x1f680 && code <= 0x1f6ff) || // Transport / Symbols
+            (code >= 0x20000 && code <= 0x3fffd) // CJK Ext B+
+        ) {
+            return 2
+        }
+        return 1
     }
 
     private getWidth(): number {

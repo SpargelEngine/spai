@@ -319,3 +319,60 @@ describe('UI — word navigation edge cases', () => {
         expect(ui.getInput()).toBe('hi!')
     })
 })
+
+describe('UI — double-width (CJK) character handling', () => {
+    test('can type chinese characters', () => {
+        const terminal = new FakeTerminal(40)
+        const ui = new UI(terminal)
+
+        ui.start()
+        // '你好' = two Chinese characters
+        terminal.emit('pieces', ['你', '好'])
+
+        expect(ui.getInput()).toBe('你好')
+    })
+
+    test('cursor movement over mixed ASCII and CJK preserves text', () => {
+        const terminal = new FakeTerminal(40)
+        const ui = new UI(terminal)
+
+        ui.start()
+        // Type "ab你好cd" and move around
+        const text = ['a', 'b', '你', '好', 'c', 'd']
+        terminal.emit('pieces', text)
+
+        expect(ui.getInput()).toBe('ab你好cd')
+
+        // Move left 1, insert X: "ab你好cXd"
+        terminal.emit('pieces', [ESC + '[D'])
+        terminal.emit('pieces', ['X'])
+        expect(ui.getInput()).toBe('ab你好cXd')
+
+        // Move left 4 more (past "好你"): cursor at "ab|你好cXd"
+        terminal.emit('pieces', [
+            ESC + '[D',
+            ESC + '[D',
+            ESC + '[D',
+            ESC + '[D',
+        ])
+        terminal.emit('pieces', ['Y'])
+        expect(ui.getInput()).toBe('abY你好cXd')
+    })
+
+    test('word navigation treats CJK as non-word separators', () => {
+        const terminal = new FakeTerminal(40)
+        const ui = new UI(terminal)
+
+        ui.start()
+        // "hello 你好 world"
+        const text = 'hello 你好 world'
+        terminal.emit('pieces', [...text])
+
+        expect(ui.getInput()).toBe('hello 你好 world')
+
+        // Option+left from end: cursor should go to start of "world"
+        terminal.emit('pieces', [ESC + 'b'])
+        terminal.emit('pieces', ['X'])
+        expect(ui.getInput()).toBe('hello 你好 Xworld')
+    })
+})
