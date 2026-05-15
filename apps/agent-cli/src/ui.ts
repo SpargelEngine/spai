@@ -92,7 +92,7 @@ export class UI {
             return
         }
 
-        if (piece.length === 1 && piece >= ' ' && piece < '\x7f') {
+        if (piece.length === 1 && piece >= ' ') {
             // Printable character
             this.inputText =
                 this.inputText.slice(0, this.inputCursor) +
