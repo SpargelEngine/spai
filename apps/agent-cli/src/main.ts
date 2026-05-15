@@ -2,25 +2,23 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
-import readline from 'node:readline/promises'
 
 import { Agent, BashTool, EditFileTool } from '@spai/agent'
 import {
     AssistantMessage,
     Config,
+    Message,
     Provider,
     Session,
     TokenUsage,
 } from '@spai/core'
 import { ChatCompletionsProvider } from '@spai/provider'
 
-import { cliConfigSchema } from './config'
+import { type CLIConfig, cliConfigSchema } from './config'
+import { Terminal } from './terminal'
+import { UI } from './ui'
 
 const EXIT_COMMANDS = new Set(['q', 'quit', 'exit'])
-
-function printWelcome() {
-    console.log('hint: Type a message and press enter. Type ":q" to quit.\n')
-}
 
 let totalInputTokens = 0
 let totalOutputTokens = 0
@@ -28,14 +26,6 @@ let totalCachedTokens = 0
 
 const DIM = '\x1b[2m'
 const RESET = '\x1b[0m'
-
-function onSubturnStart(_event: {
-    kind: 'subturn-start'
-    turnId: string
-    iteration: number
-}) {
-    console.log('----')
-}
 
 function onModelFinish(
     event: {
@@ -48,33 +38,40 @@ function onModelFinish(
     showReasoning: boolean,
     showToolCalls: boolean,
     color: boolean
-) {
+): string[] {
     const { message } = event
+    const lines: string[] = []
 
     // Reasoning
     if (message.reasoning !== undefined) {
-        if (color) process.stdout.write(DIM)
         if (showReasoning) {
-            console.log(`[reasoning]\n${message.reasoning}\n`)
+            lines.push(
+                ...dimLines(
+                    ['[reasoning]', ...splitLines(message.reasoning), ''],
+                    color
+                )
+            )
         } else {
-            console.log(`[reasoning] (...) \n`)
+            lines.push(...dimLines(['[reasoning] (...)', ''], color))
         }
-        if (color) process.stdout.write(RESET)
     }
 
     // Assistant Message
     if (message.content !== undefined && message.content !== '') {
-        console.log(`[assistant]\n${message.content}\n`)
+        lines.push('[assistant]', ...splitLines(message.content), '')
     }
 
     // Tool Calls
     if (message.toolCalls && message.toolCalls.length > 0) {
-        if (color) process.stdout.write(DIM)
         if (showToolCalls) {
-            console.log('[tool-call]')
+            const toolCallLines = ['[tool-call]']
             message.toolCalls.forEach((toolCall) => {
-                console.log(`  ${toolCall.name}(${toolCall.arguments})\n`)
+                toolCallLines.push(
+                    `  ${toolCall.name}(${toolCall.arguments})`,
+                    ''
+                )
             })
+            lines.push(...dimLines(toolCallLines, color))
         } else {
             const counts = new Map<string, number>()
             for (const toolCall of message.toolCalls) {
@@ -84,9 +81,10 @@ function onModelFinish(
             for (const [name, count] of counts) {
                 parts.push(`${name} (${count})`)
             }
-            console.log(`[tool-call] ${parts.join(', ')}\n`)
+            lines.push(
+                ...dimLines([`[tool-call] ${parts.join(', ')}`, ''], color)
+            )
         }
-        if (color) process.stdout.write(RESET)
     }
 
     if (event.tokenUsage !== undefined) {
@@ -94,46 +92,133 @@ function onModelFinish(
         totalOutputTokens += event.tokenUsage.outputTokens
         totalCachedTokens += event.tokenUsage.cachedTokens
     }
+
+    return lines
 }
 
-function createReadline() {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-    })
-    // Track closed state since the TypeScript types don't expose the
-    // runtime `closed` property.
-    let closed = false
-    rl.on('close', () => {
-        closed = true
-    })
-    return { rl, isClosed: () => closed }
+function splitLines(text: string): string[] {
+    return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
 }
 
-async function runChatCli(agent: Agent, config: Config) {
-    console.log(`Model: ${config.model}${config.thinking ? ' (thinking)' : ''}`)
+function dimLines(lines: string[], color: boolean): string[] {
+    if (!color || lines.length === 0) return lines
 
-    let { rl, isClosed } = createReadline()
+    const dimmed = [...lines]
+    dimmed[0] = DIM + dimmed[0]
+    dimmed[dimmed.length - 1] += RESET
+    return dimmed
+}
 
-    printWelcome()
+function formatHistory(messages: readonly Message[]): string[] {
+    return splitLines(JSON.stringify(messages, null, 2))
+}
+
+async function runChatCli(agent: Agent, config: Config, cliConfig: CLIConfig) {
+    const terminal = new Terminal()
+    const pendingInputs: string[] = []
+    let inputResolver: ((input: string | undefined) => void) | undefined
+    let exitRequested = false
+    let activeAbortController: AbortController | undefined
+
+    const waitForInput = async (): Promise<string | undefined> => {
+        if (exitRequested) return undefined
+
+        const pendingInput = pendingInputs.shift()
+        if (pendingInput !== undefined) {
+            return pendingInput
+        }
+
+        return await new Promise((resolve) => {
+            inputResolver = resolve
+        })
+    }
+
+    const submitInput = (input: string) => {
+        const trimmedInput = input.trim()
+        if (inputResolver !== undefined) {
+            const resolve = inputResolver
+            inputResolver = undefined
+            resolve(trimmedInput)
+            return
+        }
+
+        pendingInputs.push(trimmedInput)
+    }
+
+    const requestExit = () => {
+        exitRequested = true
+        if (inputResolver !== undefined) {
+            const resolve = inputResolver
+            inputResolver = undefined
+            resolve(undefined)
+        }
+    }
+
+    const ui = new UI(terminal, {
+        onSubmit: submitInput,
+    })
+
+    const append = (lines: string[]) => {
+        ui.append(lines)
+    }
+
+    const handleModelFinish = (event: {
+        kind: 'model-finish'
+        turnId: string
+        iteration: number
+        message: AssistantMessage
+        tokenUsage?: TokenUsage
+    }) => {
+        append(
+            onModelFinish(
+                event,
+                cliConfig.showReasoning,
+                cliConfig.showToolCalls,
+                cliConfig.color
+            )
+        )
+    }
+
+    const handleTerminalPieces = (pieces: string[]) => {
+        for (const piece of pieces) {
+            if (piece !== '\x03') continue
+
+            if (
+                activeAbortController !== undefined &&
+                !activeAbortController.signal.aborted
+            ) {
+                activeAbortController.abort()
+                append(['[interrupted]'])
+            } else if (activeAbortController === undefined) {
+                requestExit()
+            }
+        }
+    }
+
+    terminal.start()
+    ui.start()
+    terminal.on('pieces', handleTerminalPieces)
+    agent.on('model-finish', handleModelFinish)
+
+    append([
+        `Model: ${config.model}${config.thinking ? ' (thinking)' : ''}`,
+        '',
+        'hint: Type a message and press Enter. Type ":q" to quit.',
+        '',
+    ])
 
     try {
-        while (true) {
-            console.log('========')
-
-            let input: string
-            try {
-                input = (await rl.question('[user] > ')).trim()
-            } catch {
-                // Ctrl+C during input: exit the program
-                console.log()
+        while (!exitRequested) {
+            const input = await waitForInput()
+            if (input === undefined) {
                 break
             }
-            console.log('')
 
             if (input === '') {
                 continue
             }
+
+            append([`[user] ${input}`, ''])
 
             if (input.startsWith(':')) {
                 const components = input.slice(1).split(' ')
@@ -144,7 +229,7 @@ async function runChatCli(agent: Agent, config: Config) {
                     if (EXIT_COMMANDS.has(cmd)) {
                         break
                     } else if (cmd === 'history') {
-                        console.log(agent.getHistory())
+                        append(formatHistory(agent.getHistory()))
                     }
                 }
 
@@ -152,31 +237,22 @@ async function runChatCli(agent: Agent, config: Config) {
             }
 
             const abortController = new AbortController()
-
-            // readline keeps the terminal in raw mode, so Ctrl+C is NOT
-            // delivered as SIGINT — it is delivered as a keypress byte 0x03.
-            // readline's internal handler detects this and closes the
-            // interface. We listen for the 'close' event to detect Ctrl+C
-            // during agent.runTurn and abort the operation.
-            const onClose = () => {
-                abortController.abort()
-                console.log('\n[interrupted]')
-            }
-            rl.on('close', onClose)
+            activeAbortController = abortController
 
             try {
                 await agent.runTurn(input, abortController.signal)
             } finally {
-                rl.off('close', onClose)
-                if (isClosed()) {
-                    ;({ rl, isClosed } = createReadline())
-                }
+                activeAbortController = undefined
             }
         }
     } finally {
-        if (!isClosed()) {
-            rl.close()
-        }
+        append([
+            `input = ${totalInputTokens}, output = ${totalOutputTokens}, cache hit = ${asPercent(totalInputTokens === 0 ? 0 : totalCachedTokens / totalInputTokens)}`,
+        ])
+        agent.off('model-finish', handleModelFinish)
+        terminal.off('pieces', handleTerminalPieces)
+        ui.stop()
+        terminal.stop()
     }
 }
 
@@ -282,21 +358,7 @@ async function main() {
             },
         ])
     )
-    agent.on('subturn-start', (event) => onSubturnStart(event))
-    agent.on('model-finish', (event) =>
-        onModelFinish(
-            event,
-            cliConfig.showReasoning,
-            cliConfig.showToolCalls,
-            cliConfig.color
-        )
-    )
-    await runChatCli(agent, config)
-
-    console.log('====================')
-    console.log(
-        `input = ${totalInputTokens}, output = ${totalOutputTokens}, cache hit = ${asPercent(totalInputTokens === 0 ? 0 : totalCachedTokens / totalInputTokens)}`
-    )
+    await runChatCli(agent, config, cliConfig)
 }
 
 void main().catch((error: unknown) => {
