@@ -110,11 +110,11 @@ export function extractPieces(buffer: string): {
             ) {
                 j++
             }
-            // Final byte (0x30–0x7E)
+            // Final byte (0x30–0x7E), plus 0x7F (DEL) for ESC DEL
             if (
                 j < buffer.length &&
                 buffer[j] >= '\x30' &&
-                buffer[j] <= '\x7E'
+                buffer[j] <= '\x7F'
             ) {
                 pieces.push(buffer.slice(i, j + 1))
                 i = j + 1

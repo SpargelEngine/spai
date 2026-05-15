@@ -82,6 +82,16 @@ export class UI {
             return
         }
 
+        if (piece === '\x15') {
+            // Ctrl+U — delete from cursor to beginning of line
+            if (this.inputCursor > 0) {
+                this.inputText = this.inputText.slice(this.inputCursor)
+                this.inputCursor = 0
+                this.redrawInput()
+            }
+            return
+        }
+
         if (piece.length === 1 && piece >= ' ' && piece < '\x7f') {
             // Printable character
             this.inputText =
@@ -134,10 +144,132 @@ export class UI {
                     this.redrawInput()
                 }
                 return
+            case '\x1bb':
+            case '\x1b[1;3D':
+                // Option+Left — move cursor to previous word boundary
+                this.inputCursor = this.findPrevWordBoundary(
+                    this.inputText,
+                    this.inputCursor
+                )
+                this.redrawInput()
+                return
+            case '\x1bf':
+            case '\x1b[1;3C':
+                // Option+Right — move cursor to next word boundary
+                this.inputCursor = this.findNextWordBoundary(
+                    this.inputText,
+                    this.inputCursor
+                )
+                this.redrawInput()
+                return
+            case '\x1b\x7f':
+                // Option+Delete — delete word backward from cursor
+                if (this.inputCursor > 0) {
+                    const prev = this.findPrevWordBoundary(
+                        this.inputText,
+                        this.inputCursor
+                    )
+                    this.inputText =
+                        this.inputText.slice(0, prev) +
+                        this.inputText.slice(this.inputCursor)
+                    this.inputCursor = prev
+                    this.redrawInput()
+                }
+                return
+            case '\x1bd':
+            case '\x1b[3;3~':
+                // Option+Forward-Delete — delete word forward from cursor
+                if (this.inputCursor < this.inputText.length) {
+                    const next = this.findWordEnd(
+                        this.inputText,
+                        this.inputCursor
+                    )
+                    this.inputText =
+                        this.inputText.slice(0, this.inputCursor) +
+                        this.inputText.slice(next)
+                    this.redrawInput()
+                }
+                return
             default:
                 // Unknown sequence — ignore
                 return
         }
+    }
+
+    /**
+     * Find the start of the word before `cursor`.
+     * Skips whitespace going backward, then word characters,
+     * returning the position of the word start.
+     */
+    private findPrevWordBoundary(text: string, cursor: number): number {
+        let pos = cursor
+
+        // Skip non-word characters backward (whitespace, punctuation, etc.)
+        while (pos > 0 && !this.isWordChar(text[pos - 1])) {
+            pos--
+        }
+        // Skip word characters backward
+        while (pos > 0 && this.isWordChar(text[pos - 1])) {
+            pos--
+        }
+
+        return pos
+    }
+
+    /**
+     * Find the start of the word after `cursor`.
+     * Skips word characters forward, then non-word characters,
+     * returning the position of the next word start.
+     */
+    private findNextWordBoundary(text: string, cursor: number): number {
+        let pos = cursor
+
+        // Skip word characters forward
+        while (pos < text.length && this.isWordChar(text[pos])) {
+            pos++
+        }
+        // Skip non-word characters forward (whitespace, punctuation, etc.)
+        while (pos < text.length && !this.isWordChar(text[pos])) {
+            pos++
+        }
+
+        return pos
+    }
+
+    /**
+     * Find the end of the word at or after `cursor`.
+     * Unlike findNextWordBoundary, this stops at the word end
+     * without consuming trailing non-word characters (whitespace/punctuation).
+     */
+    private findWordEnd(text: string, cursor: number): number {
+        let pos = cursor
+
+        // If cursor is not on a word character, skip non-word chars first
+        if (pos < text.length && !this.isWordChar(text[pos])) {
+            while (pos < text.length && !this.isWordChar(text[pos])) {
+                pos++
+            }
+        }
+
+        // Skip word characters
+        while (pos < text.length && this.isWordChar(text[pos])) {
+            pos++
+        }
+
+        return pos
+    }
+
+    /**
+     * Returns true if `ch` is a word character (alphanumeric or underscore).
+     */
+    private isWordChar(ch: string): boolean {
+        const code = ch.charCodeAt(0)
+        return (
+            (code >= 0x30 && code <= 0x39) || // 0-9
+            (code >= 0x41 && code <= 0x5a) || // A-Z
+            (code >= 0x61 && code <= 0x7a) || // a-z
+            code === 0x5f // _
+        )
     }
 
     private redrawInput(): void {

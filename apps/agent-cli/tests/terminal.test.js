@@ -364,6 +364,66 @@ describe('incomplete sequences (remaining)', () => {
     })
 })
 
+// ─── Editor key sequences ─────────────────────────────────────────────────
+
+describe('editor key sequences', () => {
+    test('ESC b (option-left / word-back)', () => {
+        expect(extractPieces(ESC + 'b')).toEqual({
+            pieces: [ESC + 'b'],
+            remaining: '',
+        })
+    })
+
+    test('ESC f (option-right / word-forward)', () => {
+        expect(extractPieces(ESC + 'f')).toEqual({
+            pieces: [ESC + 'f'],
+            remaining: '',
+        })
+    })
+
+    test('ESC DEL (option-delete / delete-word-backward)', () => {
+        expect(extractPieces(ESC + '\x7f')).toEqual({
+            pieces: [ESC + '\x7f'],
+            remaining: '',
+        })
+    })
+
+    test('ESC d (delete-word-forward)', () => {
+        expect(extractPieces(ESC + 'd')).toEqual({
+            pieces: [ESC + 'd'],
+            remaining: '',
+        })
+    })
+
+    test('CSI 1;3D (option-left with modifier)', () => {
+        expect(extractPieces(ESC + '[1;3D')).toEqual({
+            pieces: [ESC + '[1;3D'],
+            remaining: '',
+        })
+    })
+
+    test('CSI 1;3C (option-right with modifier)', () => {
+        expect(extractPieces(ESC + '[1;3C')).toEqual({
+            pieces: [ESC + '[1;3C'],
+            remaining: '',
+        })
+    })
+
+    test('ESC DEL followed by printable chars', () => {
+        expect(extractPieces(ESC + '\x7f' + 'xy')).toEqual({
+            pieces: [ESC + '\x7f', 'x', 'y'],
+            remaining: '',
+        })
+    })
+
+    test('text then ESC DEL then text', () => {
+        expect(extractPieces('ab' + ESC + '\x7f' + 'cd')).toEqual({
+            pieces: ['a', 'b', ESC + '\x7f', 'c', 'd'],
+            remaining: '',
+        })
+    })
+})
+
 // ─── Edge cases ────────────────────────────────────────────────────────────
 
 describe('edge cases', () => {
