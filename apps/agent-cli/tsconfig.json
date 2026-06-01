@@ -12,5 +12,5 @@
       "path": "../../libs/core"
     }
   ],
-  "extends": "../../tsconfig.base.json"
+  "extends": "../../tsconfig.json"
 }

@@ -13,15 +13,13 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsgo",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "debug": "catalog:"
   },
   "devDependencies": {
-    "@types/debug": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "@types/debug": "catalog:"
   }
 }
